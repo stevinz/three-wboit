@@ -12,20 +12,12 @@
 //
 //  Types of Order Independent Transparency
 //      Depth Peeling, 2001 (many passes, slowest)
-//          https://github.com/mrdoob/three.js/pull/15490
 //      Dual Depth Peeling, 2008 (many passes)
 //      Weighted, Blended, 2013 (fastest, approximate)
-//          http://casual-effects.blogspot.com/2014/03/weighted-blended-order-independent.html
-//          http://casual-effects.blogspot.com/2015/03/implemented-weighted-blended-order.html
 //
 //  THREE Issues
 //      Issue: Order Independent Transparency
 //          https://github.com/mrdoob/three.js/issues/9977
-//      First WBOIT (2014) Implementation by @arose
-//          https://github.com/mrdoob/three.js/issues/4814
-//          https://github.com/mrdoob/three.js/compare/dev...arose:three.js:oit
-//      Working
-//          https://raw.githack.com/arose/three.js/oit/examples/webgl_oit.html
 //
 //  Implemented WebGL
 //      https://github.com/tsherif/webgl2examples/blob/master/oit.html
@@ -381,16 +373,29 @@ export { WboitRenderer };
 /////   Acknowledgements
 /////////////////////////////////////////////////////////////////////////////////////
 //
-// Some portions of this code adapted from:
+// Original Paper on WBOIT:
+//      Description:    Weighted, Blended Order-Independent Transparency
+//      Author:         Morgan McGuire and Louis Bavoil
+//      Source(s):      http://jcgt.org/published/0002/02/09/
+//                      http://casual-effects.blogspot.com/2015/03/implemented-weighted-blended-order.html
+//
+// Working WebGL 2 WBOIT:
 //      Description:    WebGL 2 Example: Order-independent Transparency
 //      Author:         Tarek Sherif <@tsherif>
 //      License:        Distributed under the MIT License
 //      Source:         https://github.com/tsherif/webgl2examples/blob/master/oit.html
 //
-// Thanks to:
-//      Description:    Weighted Blended Order-Independent Transparency
-//      Author:         Morgan McGuire and Louis Bavoil
-//      Source:         http://jcgt.org/published/0002/02/09/
+// Previous Three.js Progress:
+//      Description:    Depth Peel Example
+//      Author:         Dusan Bosnjak <@pailhead>
+//      Source:         https://github.com/mrdoob/three.js/pull/15490
+//
+//      Description:    WBOIT Example
+//      Author:         Alexander Rose <@arose>
+//      Source(s):      https://github.com/mrdoob/three.js/issues/4814
+//                      https://github.com/arose/three.js/tree/oit
+//                      https://github.com/mrdoob/three.js/compare/dev...arose:three.js:oit
+//                      https://raw.githack.com/arose/three.js/oit/examples/webgl_oit.html
 //
 /////////////////////////////////////////////////////////////////////////////////////
 /////   License
@@ -402,6 +407,7 @@ export { WboitRenderer };
 //      Copyright (c) 2022 Stephens Nunnally <@stevinz>
 //
 // Some Portions
+//      Copyright (c) 2010-2022 mrdoob and three.js authors
 //      Copyright (c) 2017 Tarek Sherif
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy

@@ -11,9 +11,8 @@
 		<div id="info">
             <a href="http://threejs.org" target="_blank">three.js</a> - Weighted Blended Order-Independent Transparency (<a href="http://jcgt.org/published/0002/02/09/">paper</a>, <a href="http://casual-effects.blogspot.de/2014/03/weighted-blended-order-independent.html">blog</a>)
             <br /><span id="color"></span><br />
-            <input type="radio" name="blend" id="oit" checked />oit &nbsp;&nbsp;
-            <input type="radio" name="blend" id="opaque" />opaque &nbsp;&nbsp;
-            <input type="radio" name="blend" id="transparent" />transparent
+            <input type="radio" name="blend" id="wboit" checked />wboit &nbsp;&nbsp;
+            <input type="radio" name="blend" id="normal" />normal
         </div>
 
 		<!-- Import maps polyfill -->
@@ -40,17 +39,15 @@
             import { WboitRenderer } from '../src/WboitRenderer.js';
 
 			let gl;
-            let camera, controls, scene, renderer;
+            let camera, controls, scene, renderer, material;
 
             let wboitPass;
-            let material, transparentMaterial;
 
             let mouse = new THREE.Vector2();
             let pixelBuffer = new Uint8Array( 4 );
 
-            let btnOit = document.getElementById( 'oit' );
-            let btnOpaque = document.getElementById( 'opaque' );
-            let btnTransparent = document.getElementById( 'transparent' );
+            let btnWboit = document.getElementById( 'wboit' );
+            let btnNormal = document.getElementById( 'normal' );
 
             init();
             animate();
@@ -71,12 +68,6 @@
                 camera.position.z = 10;
 
                 controls = new OrbitControls( camera, renderer.domElement );
-                controls.rotateSpeed = 1.8;
-                controls.zoomSpeed = 1.2;
-                controls.panSpeed = 0.8;
-                controls.noZoom = false;
-                controls.noPan = false;
-                controls.staticMoving = true;
                 controls.dynamicDampingFactor = 0.3;
 
                 scene = new THREE.Scene();
@@ -107,11 +98,62 @@
 
                 // material
 
-                material = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, vertexColors: true, vertexAlphas: true });
-                transparentMaterial = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, vertexColors: true, vertexAlphas: true, opacity: 0.5, transparent: true });
+                material = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, transparent: true, vertexColors: true, opacity: 0.5 });
 
                 const mesh = new THREE.Mesh( geometry, material );
                 scene.add( mesh );
+
+                //
+
+                // setup objects
+
+                const numItems = 10;
+                const boxGeometry = new THREE.BoxGeometry( 2, 2, 2, 1, 1, 1 );
+
+				for ( let i = 0 ; i < numItems ; i ++ ) {
+
+                    const mesh = new THREE.Mesh(
+                        boxGeometry,
+                        new THREE.MeshPhongMaterial({ side: THREE.DoubleSide, transparent: true, opacity: 0.5 })
+                        // new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, transparent: true, opacity: 0.5 })
+                    );
+
+                    mesh.renderOrder = 1;
+
+                    // transparentObjects.push(mesh);
+                    // mesh.material.onBeforeCompile = colorOnBeforeCompile;
+
+                    mesh.material.color = new THREE.Color().setHSL( (i % 2 == 0 ? numItems - i : i ) / numItems, 1, 0.5 );
+
+                    mesh.rotation.y = i * Math.PI / 2;
+                    mesh.scale.y = 2;
+                    mesh.position.y = ( i - numItems / 2 ) * 2.5;
+                    mesh.scale.x = 20;
+
+                    scene.add( mesh );
+                }
+
+                // // const opaque = new THREE.MeshBasicMaterial({color:'white'})
+                // const opaque = new THREE.MeshPhongMaterial({color:'white'})
+                // opaque.onBeforeCompile = colorOnBeforeCompile
+
+                // for( let i = 0 ; i < 4 ; i ++ ){
+                // const m = new THREE.Mesh(boxGeometry, opaque)
+                // opaqueObjects.push(m)
+                // scene.add(m)
+                // const angle = i / 2 * Math.PI
+                // m.position.set(Math.sin(angle),0,Math.cos(angle)).multiplyScalar(10)
+                // m.scale.multiplyScalar(1.5)
+                // m.scale.y = 3.5
+                // }
+
+                // lights
+
+                scene.add( new THREE.AmbientLight( 0xffffff, .5 ) );
+
+                const light = new THREE.PointLight( 0xffffff, 0.8 );
+                light.position.set( 20, 20, 20 );
+                scene.add( light );
 
                 // events
 
@@ -121,9 +163,8 @@
 
                 renderer.domElement.addEventListener( 'mousemove', onMouseMove );
 
-                btnOit.addEventListener( 'click', render, false );
-                btnOpaque.addEventListener( 'click', render, false );
-                btnTransparent.addEventListener( 'click', render, false );
+                btnWboit.addEventListener( 'click', render, false );
+                btnNormal.addEventListener( 'click', render, false );
 
                 onWindowResize();
 
@@ -176,21 +217,15 @@
 
                 // THEN: Draw Transparent Objects
 
-                if ( btnOit.checked ) {
+                if ( btnWboit.checked ) {
 
                     wboitPass.render( scene, camera );
 
-                } else if ( btnOpaque.checked ) {
-
-                    renderer.setClearColor( 0.0, 0.0 );
-                    renderer.render( scene, camera );
-
                 } else {
 
-                    scene.overrideMaterial = transparentMaterial;
                     renderer.setClearColor( 0.0, 0.0 );
+                    // renderer.clearColor();
                     renderer.render( scene, camera );
-                    scene.overrideMaterial = null;
 
                 }
 
