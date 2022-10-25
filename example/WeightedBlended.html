@@ -13,8 +13,6 @@
             <br />
             <span id="color"></span>
             <br />
-            <input type="checkbox" id="whiteBackground" />white background
-            &nbsp;&nbsp;
             <input type="radio" name="blend" id="oit" checked />oit
             &nbsp;&nbsp;
             <input type="radio" name="blend" id="opaque" />opaque
@@ -30,7 +28,7 @@
 	 		{
 		 		"imports": {
 			 		"three": "https://unpkg.com/three@0.145.0/build/three.module.js",
-					"three/addons/": "https://unpkg.com/three@0.145.0/examples/jsm/",
+					"three/addons/": "https://unpkg.com/three@0.145.0/examples/jsm/"
 		 		}
 	 		}
  		</script>
@@ -44,13 +42,12 @@
 			import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 			let gl;
-            let container, stats;
+            let oitPass;
             let camera, controls, scene, renderer, transparentMaterial;
 
             let mouse = new THREE.Vector2();
             let pixelBuffer = new Uint8Array( 4 );
 
-            let btnWhiteBackground = document.getElementById( 'whiteBackground' );
             let btnOit = document.getElementById( 'oit' );
             let btnOpaque = document.getElementById( 'opaque' );
             let btnTransparent = document.getElementById( 'transparent' );
@@ -58,11 +55,11 @@
             init();
             animate();
 
-            function OitRenderer( renderer ){
+            function OitRenderer( renderer ) {
 
                 // accumulation shader
 
-                var accumulationMaterial = new THREE.RawShaderMaterial( {
+                let accumulationMaterial = new THREE.RawShaderMaterial( {
                     vertexShader: document.getElementById( 'vertexShader' ).textContent,
                     fragmentShader: document.getElementById( 'fragmentShaderAccumulation' ).textContent,
                     side: THREE.DoubleSide,
@@ -75,7 +72,7 @@
                     blendDst: THREE.OneFactor
                 });
 
-                var accumulationTexture = new THREE.WebGLRenderTarget(
+                let accumulationTexture = new THREE.WebGLRenderTarget(
                     window.innerWidth, window.innerHeight,
                     {
                         minFilter: THREE.NearestFilter,
@@ -88,20 +85,22 @@
 
                 // revelage shader
 
-                var revealageMaterial = new THREE.RawShaderMaterial( {
-                    vertexShader: document.getElementById( 'vertexShader' ).textContent,
-                    fragmentShader: document.getElementById( 'fragmentShaderRevealage' ).textContent,
-                    side: THREE.DoubleSide,
-                    depthWrite: false,
-                    depthTest: false,
-                    transparent: true,
-                    blending: THREE.CustomBlending,
-                    blendEquation: THREE.AddEquation,
-                    blendSrc: THREE.ZeroFactor,
-                    blendDst: THREE.OneMinusSrcAlphaFactor
-                });
+                let revealageMaterial = new THREE.RawShaderMaterial(
+                    {
+                        vertexShader: document.getElementById( 'vertexShader' ).textContent,
+                        fragmentShader: document.getElementById( 'fragmentShaderRevealage' ).textContent,
+                        side: THREE.DoubleSide,
+                        depthWrite: false,
+                        depthTest: false,
+                        transparent: true,
+                        blending: THREE.CustomBlending,
+                        blendEquation: THREE.AddEquation,
+                        blendSrc: THREE.ZeroFactor,
+                        blendDst: THREE.OneMinusSrcAlphaFactor
+                    }
+                );
 
-                var revealageTexture = new THREE.WebGLRenderTarget(
+                let revealageTexture = new THREE.WebGLRenderTarget(
                     window.innerWidth, window.innerHeight,
                     {
                         minFilter: THREE.NearestFilter,
@@ -114,12 +113,12 @@
 
                 // compositing shader
 
-                var compositingUniforms = {
+                let compositingUniforms = {
                     "tAccumulation": { type: "t", value: null },
                     "tRevealage": { type: "t", value: null }
                 };
 
-                var compositingMaterial = new THREE.ShaderMaterial({
+                let compositingMaterial = new THREE.ShaderMaterial( {
                     uniforms: compositingUniforms,
                     vertexShader: document.getElementById( 'vertexShaderQuad' ).textContent,
                     fragmentShader: document.getElementById( 'fragmentShaderCompositing' ).textContent,
@@ -130,8 +129,8 @@
                     blendDst: THREE.SrcAlphaFactor
                 });
 
-                var quadCamera = new THREE.OrthographicCamera( -1, 1, 1, -1, 0, 1 );
-                var quadScene  = new THREE.Scene();
+                let quadCamera = new THREE.OrthographicCamera( -1, 1, 1, -1, 0, 1 );
+                let quadScene  = new THREE.Scene();
                 quadScene.add( new THREE.Mesh( new THREE.PlaneGeometry( 2, 2 ), compositingMaterial ) );
 
                 // events
@@ -148,15 +147,15 @@
 
                 // background color
 
-                var clearColor = new THREE.Color( 0, 0, 0 );
+                let clearColor = new THREE.Color( 0, 0, 0 );
 
-                this.setClearColor = function( newClearColor ){
+                this.setClearColor = function( newClearColor ) {
 
                     clearColor = newClearColor;
 
                 }
 
-                this.render = function( scene, camera ){
+                this.render = function( scene, camera ) {
 
                     renderer.setClearColor( clearColor, 1.0 );
                     renderer.clearColor();
@@ -180,22 +179,20 @@
 
             function init() {
 
-                container = document.getElementById( 'container' );
-
-                renderer = new THREE.WebGLRenderer({ preserveDrawingBuffer: true });
-                container.appendChild( renderer.domElement );
+                renderer = new THREE.WebGLRenderer( { preserveDrawingBuffer: true } );
+                document.body.appendChild( renderer.domElement );
 
                 gl = renderer.getContext();
-                if( !gl.getExtension( "OES_texture_float" ) ){
-                    console.error( "No OES_texture_float support for float textures!" );
-                }
+                // if ( ! gl.getExtension( "OES_texture_float" ) ) {
+                //     console.error( "No OES_texture_float support for float textures!" );
+                // }
 
                 oitPass = new OitRenderer( renderer );
 
                 camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 0.1, 500 );
                 camera.position.z = 10;
 
-                controls = new THREE.TrackballControls( camera );
+                controls = new OrbitControls( camera, renderer.domElement );
                 controls.rotateSpeed = 1.8;
                 controls.zoomSpeed = 1.2;
                 controls.panSpeed = 0.8;
@@ -204,18 +201,13 @@
                 controls.staticMoving = true;
                 controls.dynamicDampingFactor = 0.3;
 
-                stats = new Stats();
-                stats.domElement.style.position = 'absolute';
-                stats.domElement.style.top = '0px';
-                container.appendChild( stats.domElement );
-
                 scene = new THREE.Scene();
 
                 // geometry
 
-                var geometry = new THREE.BufferGeometry();
+                let geometry = new THREE.BufferGeometry();
 
-                var vertices = new Float32Array([
+                let vertices = new Float32Array( [
 
                     // center quad (yellow)
                      1,  1,  0,
@@ -243,24 +235,24 @@
 
                 ]);
 
-                geometry.addAttribute( 'position', new THREE.BufferAttribute( vertices, 3 ) );
+                geometry.setAttribute( 'position', new THREE.BufferAttribute( vertices, 3 ) );
 
-                var colors = new Float32Array( 6 * 3 * 4, 4 );
+                let colors = new Float32Array( 6 * 3 * 4, 4 );
 
                 // center quad (yellow)
-                for ( var i = 0; i < 6; i++ ) colors.set([ 1, 1, 0, 0.5 ], i * 4 );
+                for ( let i = 0; i < 6; i ++ ) colors.set( [ 1, 1, 0, 0.5 ], i * 4 );
 
                 // bottom left quad (red)
-                for ( var i = 6; i < 12; i++ ) colors.set([ 1, 0, 0, 0.5 ], i * 4 );
+                for ( let i = 6; i < 12; i ++ ) colors.set( [ 1, 0, 0, 0.5 ], i * 4 );
 
                 // top right quad (blue)
-                for ( var i = 12; i < 18; i++ ) colors.set([ 0, 0, 1, 0.5 ], i * 4 );
+                for ( let i = 12; i < 18; i ++ ) colors.set( [ 0, 0, 1, 0.5 ], i * 4 );
 
-                geometry.addAttribute( 'color', new THREE.BufferAttribute( colors, 4 ) );
+                geometry.setAttribute( 'color', new THREE.BufferAttribute( colors, 4 ) );
 
                 // material
 
-                var material = new THREE.RawShaderMaterial( {
+                let material = new THREE.RawShaderMaterial( {
                     vertexShader: document.getElementById( 'vertexShader' ).textContent,
                     fragmentShader: document.getElementById( 'fragmentShader' ).textContent,
                     side: THREE.DoubleSide
@@ -273,7 +265,7 @@
                     transparent: true
                 });
 
-                var mesh = new THREE.Mesh( geometry, material );
+                let mesh = new THREE.Mesh( geometry, material );
                 scene.add( mesh );
 
                 // events
@@ -283,17 +275,6 @@
                 controls.addEventListener( 'change', render );
 
                 renderer.domElement.addEventListener( 'mousemove', onMouseMove );
-
-                var bgColor = new THREE.Color( "white" );
-                btnWhiteBackground.addEventListener( 'click', function(){
-
-                    if( btnWhiteBackground.checked ) bgColor.set( "white" );
-                    else bgColor.set( "black" );
-
-                    oitPass.setClearColor( bgColor );
-                    renderer.setClearColor( bgColor, 1.0 );
-
-                }, false );
 
                 btnOit.addEventListener( 'click', render, false );
                 btnOpaque.addEventListener( 'click', render, false );
@@ -327,19 +308,17 @@
 
                 controls.update();
 
-                stats.update();
-
                 gl.readPixels(
                     mouse.x, window.innerHeight - mouse.y, 1, 1,
                     gl.RGBA, gl.UNSIGNED_BYTE, pixelBuffer
                 );
 
-                var rgba = Array.apply( [], pixelBuffer );
+                let rgba = Array.apply( [], pixelBuffer );
                 document.getElementById( 'color' ).innerHTML = [
-                    ( rgba[0]/255 ).toPrecision(2),
-                    ( rgba[1]/255 ).toPrecision(2),
-                    ( rgba[2]/255 ).toPrecision(2),
-                    ( rgba[3]/255 ).toPrecision(2)
+                    ( rgba[0]/255 ).toPrecision( 2 ),
+                    ( rgba[1]/255 ).toPrecision( 2 ),
+                    ( rgba[2]/255 ).toPrecision( 2 ),
+                    ( rgba[3]/255 ).toPrecision( 2 )
                 ].join( ", " );
 
             }
@@ -349,15 +328,15 @@
                 // draw opaque surfaces
                 // ...
 
-                if( btnOit.checked ){
+                if ( btnOit.checked ) {
 
                     oitPass.render( scene, camera );
 
-                }else if( btnOpaque.checked ) {
+                } else if ( btnOpaque.checked ) {
 
                     renderer.render( scene, camera );
 
-                }else{
+                } else {
 
                     scene.overrideMaterial = transparentMaterial;
                     renderer.render( scene, camera );
@@ -365,10 +344,10 @@
 
                 }
 
-                // var i, o, u;
-                // var matrix = new THREE.Matrix4();
-                // var objects = scene.children;
-                // var nObjects = objects.length;
+                // let i, o, u;
+                // let matrix = new THREE.Matrix4();
+                // let objects = scene.children;
+                // let nObjects = objects.length;
 
                 // camera.updateMatrix();
                 // camera.updateMatrixWorld( true );
@@ -384,193 +363,193 @@
 
 		</script>
 
-<script id="vertexShader" type="x-shader/x-vertex">
+        <script id="vertexShader" type="x-shader/x-vertex">
 
-	precision highp float;
-	precision highp int;
+            precision highp float;
+            precision highp int;
 
-	uniform mat4 modelViewMatrix;
-	uniform mat4 projectionMatrix;
-	uniform mat4 viewMatrix;
-	uniform mat4 modelMatrix;
+            uniform mat4 modelViewMatrix;
+            uniform mat4 projectionMatrix;
+            uniform mat4 viewMatrix;
+            uniform mat4 modelMatrix;
 
-	attribute vec3 position;
-	attribute vec4 color;
+            attribute vec3 position;
+            attribute vec4 color;
 
-	varying vec4 vColor;
+            varying vec4 vColor;
 
-	varying float z;
+            varying float z;
 
-	void main() {
+            void main() {
 
-		vColor = color;
+                vColor = color;
 
-		gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+                gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
 
-		vec4 z4 = modelViewMatrix * vec4( position, 1.0 );
-		z = ( z4.xyz / z4.w ).z;
-		z = z4.z;
-		// z = gl_Position.z;
-		// z = position.z;
-		// z = ( viewMatrix * vec4( position, 1.0 ) ).z;
+                vec4 z4 = modelViewMatrix * vec4( position, 1.0 );
+                z = ( z4.xyz / z4.w ).z;
+                z = z4.z;
+                // z = gl_Position.z;
+                // z = position.z;
+                // z = ( viewMatrix * vec4( position, 1.0 ) ).z;
 
-	}
+            }
 
-</script>
+        </script>
 
-<script id="fragmentShader" type="x-shader/x-fragment">
+        <script id="fragmentShader" type="x-shader/x-fragment">
 
-	precision highp float;
-	precision highp int;
+            precision highp float;
+            precision highp int;
 
-	varying vec4 vColor;
+            varying vec4 vColor;
 
-	varying float z;
+            varying float z;
 
-	void main() {
+            void main() {
 
-		z; // to silence 'not read' warnings
-		vec4 color = vec4( vColor );
-		gl_FragColor = color;
+                z; // to silence 'not read' warnings
+                vec4 color = vec4( vColor );
+                gl_FragColor = color;
 
-	}
+            }
 
-</script>
+        </script>
 
-<script id="vertexShaderQuad" type="x-shader/x-vertex">
+        <script id="vertexShaderQuad" type="x-shader/x-vertex">
 
-	varying vec2 vUv;
+            varying vec2 vUv;
 
-	void main() {
+            void main() {
 
-		vUv = uv;
-		gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+                vUv = uv;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
 
-	}
+            }
 
-</script>
+        </script>
 
-<script id="fragmentShaderQuad" type="x-shader/x-fragment">
+        <script id="fragmentShaderQuad" type="x-shader/x-fragment">
 
-	uniform sampler2D tDiffuse;
+            uniform sampler2D tDiffuse;
 
-	varying vec2 vUv;
+            varying vec2 vUv;
 
-	void main() {
+            void main() {
 
-		vec4 texel = texture2D( tDiffuse, vUv );
-		gl_FragColor = texel;
+                vec4 texel = texture2D( tDiffuse, vUv );
+                gl_FragColor = texel;
 
-	}
+            }
 
-</script>
+        </script>
 
-<script id="fragmentShaderAccumulation" type="x-shader/x-fragment">
+        <script id="fragmentShaderAccumulation" type="x-shader/x-fragment">
 
-	precision highp float;
-	precision highp int;
+            precision highp float;
+            precision highp int;
 
-	varying float z;
+            varying float z;
 
-	varying vec4 vColor;
+            varying vec4 vColor;
 
-	float w( float a )
-	{
+            float w( float a )
+            {
 
-		// eq. 10
-		// return a * max( 1e-2, 3.0 * 1e3 * pow( 1.0 - gl_FragCoord.z, 3.0 ) );
+                // eq. 10
+                // return a * max( 1e-2, 3.0 * 1e3 * pow( 1.0 - gl_FragCoord.z, 3.0 ) );
 
-		// eq. 9
-		//return a * clamp( 0.03 / ( 1e-5 + pow( abs( z ) / 200.0, 4.0 ) ), 1e-2, 3e3 );
+                // eq. 9
+                //return a * clamp( 0.03 / ( 1e-5 + pow( abs( z ) / 200.0, 4.0 ) ), 1e-2, 3e3 );
 
 
-		// weight function design
-		// float colorResistance = 1.0; // 1.0
-		// float rangeAdjustmentsClampBounds = 0.3; // 0.3
-		// float depth = abs( 1.0 - gl_FragCoord.z ); // abs( z )
-		// float orderingDiscrimination = 0.1; // 200.0
-		// float orderingStrength = 4.0; // 4.0
-		// float minValue = 1e-2;
-		// float maxValue = 3e3;
-		// return pow( a, colorResistance ) *
-		//     clamp(
-		//         rangeAdjustmentsClampBounds /
-		//             ( 1e-5 + pow( depth / orderingDiscrimination, orderingStrength ) ),
-		//         minValue, maxValue
-		//     );
+                // weight function design
+                // float colorResistance = 1.0; // 1.0
+                // float rangeAdjustmentsClampBounds = 0.3; // 0.3
+                // float depth = abs( 1.0 - gl_FragCoord.z ); // abs( z )
+                // float orderingDiscrimination = 0.1; // 200.0
+                // float orderingStrength = 4.0; // 4.0
+                // float minValue = 1e-2;
+                // float maxValue = 3e3;
+                // return pow( a, colorResistance ) *
+                //     clamp(
+                //         rangeAdjustmentsClampBounds /
+                //             ( 1e-5 + pow( depth / orderingDiscrimination, orderingStrength ) ),
+                //         minValue, maxValue
+                //     );
 
-		float z2 = z;
-		//z2 = gl_FragCoord.z;
+                float z2 = z;
+                //z2 = gl_FragCoord.z;
 
-		// eq. 7
-		return pow( a, 1.0 ) * clamp( 10.0 / ( 1e-5 + pow( abs( z2 ) / 5.0, 1.0 ) + pow( abs( z2 ) / 200.0, 1.0 ) ), 1e-2, 3e3 );
+                // eq. 7
+                return pow( a, 1.0 ) * clamp( 10.0 / ( 1e-5 + pow( abs( z2 ) / 5.0, 1.0 ) + pow( abs( z2 ) / 200.0, 1.0 ) ), 1e-2, 3e3 );
 
-	}
+            }
 
-	void main()
-	{
+            void main()
+            {
 
-		z; // to silence 'not read' warnings
-		float ai = vColor.a;
-		vec3 Ci = vColor.rgb * ai;
-		gl_FragColor = vec4( Ci, ai ) * w( ai );
+                z; // to silence 'not read' warnings
+                float ai = vColor.a;
+                vec3 Ci = vColor.rgb * ai;
+                gl_FragColor = vec4( Ci, ai ) * w( ai );
 
-	}
+            }
 
-</script>
+        </script>
 
-<script id="fragmentShaderRevealage" type="x-shader/x-fragment">
+        <script id="fragmentShaderRevealage" type="x-shader/x-fragment">
 
-	precision highp float;
-	precision highp int;
+            precision highp float;
+            precision highp int;
 
-	varying float z;
+            varying float z;
 
-	varying vec4 vColor;
+            varying vec4 vColor;
 
-	float w( float a )
-	{
+            float w( float a )
+            {
 
-		// eq. 10
-		// return a * max( 1e-2, 3.0 * 1e3 * pow( 1.0 - gl_FragCoord.z, 3.0 ) );
+                // eq. 10
+                // return a * max( 1e-2, 3.0 * 1e3 * pow( 1.0 - gl_FragCoord.z, 3.0 ) );
 
-		// eq. 9
-		//return a * clamp( 0.03 / ( 1e-5 + pow( abs( z ) / 200.0, 4.0 ) ), 1e-2, 3e3 );
+                // eq. 9
+                //return a * clamp( 0.03 / ( 1e-5 + pow( abs( z ) / 200.0, 4.0 ) ), 1e-2, 3e3 );
 
 
-		// weight function design
-		// float colorResistance = 1.0; // 1.0
-		// float rangeAdjustmentsClampBounds = 0.3; // 0.3
-		// float depth = abs( 1.0 - gl_FragCoord.z ); // abs( z )
-		// float orderingDiscrimination = 0.1; // 200.0
-		// float orderingStrength = 4.0; // 4.0
-		// float minValue = 1e-2;
-		// float maxValue = 3e3;
-		// return pow( a, colorResistance ) *
-		//     clamp(
-		//         rangeAdjustmentsClampBounds /
-		//             ( 1e-5 + pow( depth / orderingDiscrimination, orderingStrength ) ),
-		//         minValue, maxValue
-		//     );
+                // weight function design
+                // float colorResistance = 1.0; // 1.0
+                // float rangeAdjustmentsClampBounds = 0.3; // 0.3
+                // float depth = abs( 1.0 - gl_FragCoord.z ); // abs( z )
+                // float orderingDiscrimination = 0.1; // 200.0
+                // float orderingStrength = 4.0; // 4.0
+                // float minValue = 1e-2;
+                // float maxValue = 3e3;
+                // return pow( a, colorResistance ) *
+                //     clamp(
+                //         rangeAdjustmentsClampBounds /
+                //             ( 1e-5 + pow( depth / orderingDiscrimination, orderingStrength ) ),
+                //         minValue, maxValue
+                //     );
 
-		float z2 = z;
-		//z2 = gl_FragCoord.z;
+                float z2 = z;
+                //z2 = gl_FragCoord.z;
 
-		// eq. 7
-		return pow( a, 1.0 ) * clamp( 10.0 / ( 1e-5 + pow( abs( z2 ) / 5.0, 1.0 ) + pow( abs( z2 ) / 200.0, 1.0 ) ), 1e-2, 3e3 );
+                // eq. 7
+                return pow( a, 1.0 ) * clamp( 10.0 / ( 1e-5 + pow( abs( z2 ) / 5.0, 1.0 ) + pow( abs( z2 ) / 200.0, 1.0 ) ), 1e-2, 3e3 );
 
-	}
+            }
 
-	void main()
-	{
+            void main()
+            {
 
-		z; // to silence 'not read' warnings
-		float ai = vColor.a;
-		gl_FragColor = vec4( vec3( w( ai ) ), 1.0 );
+                z; // to silence 'not read' warnings
+                float ai = vColor.a;
+                gl_FragColor = vec4( vec3( w( ai ) ), 1.0 );
 
-	}
+            }
 
-</script>
+        </script>
 
 		<script id="fragmentShaderCompositing" type="x-shader/x-fragment">
 
