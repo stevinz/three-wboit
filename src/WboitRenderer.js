@@ -287,27 +287,15 @@ class WboitRenderer {
         const compositingMaterial = new THREE.ShaderMaterial(
             {
                 vertexShader: vertexShaderQuad,
-
                 fragmentShader: fragmentShaderCompositing,
                 uniforms: compositingUniforms,
-
                 // fragmentShader: fragmentShaderQuad,
                 // uniforms: copyUniforms,
-
                 transparent: true,
-
-                // blending: THREE.CustomBlending,
-                // blendEquation: THREE.AddEquation,
-                // blendSrc: THREE.OneMinusSrcAlphaFactor,
-                // blendDst: THREE.OneFactor
-
                 blending: THREE.CustomBlending,
                 blendEquation: THREE.AddEquation,
-                blendSrc: THREE.ZeroFactor,
-                blendDst: THREE.OneMinusSrcColorFactor,
-                // blendEquationAlpha: THREE.AddEquation,
-                // blendSrcAlpha: THREE.ZeroFactor,
-                // blendDstAlpha: THREE.OneMinusSrcAlphaFactor,
+                blendSrc: THREE.OneFactor,
+                blendDst: THREE.OneMinusSrcAlphaFactor,
             }
         );
 
@@ -322,8 +310,6 @@ class WboitRenderer {
         // events
 
         function onWindowResize() {
-
-            // FIXME?? results in distorted image
 
             accumulationTexture.setSize( window.innerWidth, window.innerHeight );
             revealageTexture.setSize( window.innerWidth, window.innerHeight );
@@ -341,10 +327,6 @@ class WboitRenderer {
 
         function render( scene, camera ) {
 
-            // // Basic Render
-            // renderer.render( scene, camera );
-            // return;
-
             // // Render to Texture
             // scene.overrideMaterial = accumulationMaterial;
             // renderer.setRenderTarget( accumulationTexture );
@@ -357,7 +339,7 @@ class WboitRenderer {
             // return;
 
             // // Wboit
-            renderer.setClearColor( clearColorZero, 0.0 );
+            renderer.setClearColor( clearColorZero, 1.0 );
             renderer.clearColor();
 
             scene.overrideMaterial = accumulationMaterial;
@@ -366,16 +348,12 @@ class WboitRenderer {
 
             scene.overrideMaterial = revealageMaterial;
             renderer.setRenderTarget( revealageTexture );
-            renderer.setClearColor( clearColorOne, 1.0 );
-            renderer.clearColor();
             renderer.render( scene, camera );
 
             compositingUniforms[ 'tAccumulation' ].value = accumulationTexture.texture;
             compositingUniforms[ 'tRevealage' ].value = revealageTexture.texture;
             scene.overrideMaterial = null;
             renderer.setRenderTarget( null );
-            // renderer.setClearColor( clearColorZero, 1.0 );
-            // renderer.clear();
             renderer.render( quadMesh, quadCamera );
 
         }
