@@ -28,36 +28,58 @@ import * as THREE from 'three';
 
 ///// Shaders
 
-const vertexShader = `
+const vertexShaderAccumulation = `
     precision highp float;
     precision highp int;
 
     uniform mat4 modelViewMatrix;
     uniform mat4 projectionMatrix;
-    uniform mat4 viewMatrix;
-    uniform mat4 modelMatrix;
 
     attribute vec3 position;
     attribute vec4 color;
 
     varying vec4 vColor;
 
-    varying float z;
+    void main() {
+        vColor = color;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+    }
+`;
+
+const fragmentShaderAccumulation = `
+    precision highp float;
+    precision highp int;
+
+    varying vec4 vColor;
+
+    float weight( float z2, float a ) {
+        return clamp( pow( min( 1.0, a * 10.0 ) + 0.01, 3.0 ) * 1e8 * pow( 1.0 - z2 * 0.9, 3.0 ), 1e-2, 3e3 );
+    }
 
     void main() {
+        vec4 color = vColor;
+        color.rgb *= color.a;
+        float w = weight( gl_FragCoord.z, color.a );
+        gl_FragColor = vec4( color.rgb * w, color.a );
+    }
+`;
 
-        vColor = color;
+const fragmentShaderRevealage = `
+    precision highp float;
+    precision highp int;
 
-        gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+    varying vec4 vColor;
 
-        vec4 z4 = modelViewMatrix * vec4( position, 1.0 );
-        z = ( z4.xyz / z4.w ).z;
-        z = z4.z;
+    float weight( float z2, float a ) {
+        return clamp( pow( min( 1.0, a * 10.0 ) + 0.01, 3.0 ) * 1e8 * pow( 1.0 - z2 * 0.9, 3.0 ), 1e-2, 3e3 );
+    }
 
-        // z = gl_Position.z;
-        // z = position.z;
-        // z = ( viewMatrix * vec4( position, 1.0 ) ).z;
-
+    void main() {
+        vec4 color = vColor;
+        color.rgb *= color.a;
+        float w = weight( gl_FragCoord.z, color.a );
+        float accumAlpha = color.a * w;
+        gl_FragColor = vec4( vec3( accumAlpha ), 1.0 );
     }
 `;
 
@@ -65,23 +87,8 @@ const vertexShaderQuad = `
     varying vec2 vUv;
 
     void main() {
-
         vUv = uv;
         gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
-
-    }
-`;
-
-const fragmentShaderQuad = `
-    uniform sampler2D tDiffuse;
-    uniform float opacity;
-    varying vec2 vUv;
-
-    void main() {
-
-        vec4 texel = texture2D( tDiffuse, vUv );
-        gl_FragColor = opacity * texel;
-
     }
 `;
 
@@ -91,109 +98,11 @@ const fragmentShaderCompositing = `
     uniform sampler2D tAccumulation;
     uniform sampler2D tRevealage;
 
-    void main()
-    {
+    void main() {
         vec4 accum = texture2D( tAccumulation, vUv );
-        float r = texture2D( tRevealage, vUv ).r;
-
-        gl_FragColor = vec4( accum.rgb / clamp( accum.a, 1e-9, 5e9 ), r );
-    }
-`;
-
-const fragmentShaderAccumulation = `
-    precision highp float;
-    precision highp int;
-
-    varying float z;
-
-    varying vec4 vColor;
-
-    float w( float a ) {
-
-        // eq. 10
-        // return a * max( 1e-2, 3.0 * 1e3 * pow( 1.0 - gl_FragCoord.z, 3.0 ) );
-
-        // eq. 9
-        // return a * clamp( 0.03 / ( 1e-5 + pow( abs( z ) / 200.0, 4.0 ) ), 1e-2, 3e3 );
-
-        // weight function design
-        // float colorResistance = 1.0; // 1.0
-        // float rangeAdjustmentsClampBounds = 0.3; // 0.3
-        // float depth = abs( 1.0 - gl_FragCoord.z ); // abs( z )
-        // float orderingDiscrimination = 0.1; // 200.0
-        // float orderingStrength = 4.0; // 4.0
-        // float minValue = 1e-2;
-        // float maxValue = 3e3;
-        // return pow( a, colorResistance ) *
-        //     clamp(
-        //         rangeAdjustmentsClampBounds /
-        //             ( 1e-5 + pow( depth / orderingDiscrimination, orderingStrength ) ),
-        //         minValue, maxValue
-        //     );
-
-        float z2 = z;
-        //z2 = gl_FragCoord.z;
-
-        // eq. 7
-        return pow( a, 1.0 ) * clamp( 10.0 / ( 1e-5 + pow( abs( z2 ) / 5.0, 1.0 ) + pow( abs( z2 ) / 200.0, 1.0 ) ), 1e-2, 3e3 );
-
-    }
-
-    void main() {
-
-        z; // to silence 'not read' warnings
-        float ai = vColor.a;
-        vec3 Ci = vColor.rgb * ai;
-        gl_FragColor = vec4( Ci, ai ) * w( ai );
-
-    }
-`;
-
-const fragmentShaderRevealage = `
-    precision highp float;
-    precision highp int;
-
-    varying float z;
-
-    varying vec4 vColor;
-
-    float w( float a ) {
-
-        // eq. 10
-        // return a * max( 1e-2, 3.0 * 1e3 * pow( 1.0 - gl_FragCoord.z, 3.0 ) );
-
-        // eq. 9
-        // return a * clamp( 0.03 / ( 1e-5 + pow( abs( z ) / 200.0, 4.0 ) ), 1e-2, 3e3 );
-
-        // weight function design
-        // float colorResistance = 1.0; // 1.0
-        // float rangeAdjustmentsClampBounds = 0.3; // 0.3
-        // float depth = abs( 1.0 - gl_FragCoord.z ); // abs( z )
-        // float orderingDiscrimination = 0.1; // 200.0
-        // float orderingStrength = 4.0; // 4.0
-        // float minValue = 1e-2;
-        // float maxValue = 3e3;
-        // return pow( a, colorResistance ) *
-        //     clamp(
-        //         rangeAdjustmentsClampBounds /
-        //             ( 1e-5 + pow( depth / orderingDiscrimination, orderingStrength ) ),
-        //         minValue, maxValue
-        //     );
-
-        float z2 = z;
-        //z2 = gl_FragCoord.z;
-
-        // eq. 7
-        return pow( a, 1.0 ) * clamp( 10.0 / ( 1e-5 + pow( abs( z2 ) / 5.0, 1.0 ) + pow( abs( z2 ) / 200.0, 1.0 ) ), 1e-2, 3e3 );
-
-    }
-
-    void main() {
-
-        z; // to silence 'not read' warnings
-        float ai = vColor.a;
-        gl_FragColor = vec4( vec3( w( ai ) ), 1.0 );
-
+        float a = 1.0 - accum.a;
+        accum.a = texture2D( tRevealage, vUv ).r;
+        gl_FragColor = vec4( a * accum.rgb / clamp( accum.a, 0.001, 50000.0), a );
     }
 `;
 
@@ -210,7 +119,7 @@ class WboitRenderer {
 
         const accumulationMaterial = new THREE.RawShaderMaterial(
             {
-                vertexShader: vertexShader,
+                vertexShader: vertexShaderAccumulation,
                 fragmentShader: fragmentShaderAccumulation,
                 side: THREE.DoubleSide,
                 depthWrite: false,
@@ -223,6 +132,23 @@ class WboitRenderer {
             }
         );
 
+        const revealageMaterial = new THREE.RawShaderMaterial(
+            {
+                vertexShader: vertexShaderAccumulation,
+                fragmentShader: fragmentShaderRevealage,
+                side: THREE.DoubleSide,
+                depthWrite: false,
+                depthTest: false,
+                transparent: true,
+                blending: THREE.CustomBlending,
+                blendEquation: THREE.AddEquation,
+                blendSrc: THREE.ZeroFactor,
+                blendDst: THREE.OneMinusSrcColorFactor
+            }
+        );
+
+        // render targets
+
         const accumulationTexture = new THREE.WebGLRenderTarget(
             window.innerWidth,
             window.innerHeight,
@@ -232,23 +158,6 @@ class WboitRenderer {
                 type: THREE.FloatType,
                 format: THREE.RGBAFormat,
                 stencilBuffer: false,
-            }
-        );
-
-        // revelage shader
-
-        const revealageMaterial = new THREE.RawShaderMaterial(
-            {
-                vertexShader: vertexShader,
-                fragmentShader: fragmentShaderRevealage,
-                side: THREE.DoubleSide,
-                depthWrite: false,
-                depthTest: false,
-                transparent: true,
-                blending: THREE.CustomBlending,
-                blendEquation: THREE.AddEquation,
-                blendSrc: THREE.ZeroFactor,
-                blendDst: THREE.OneMinusSrcAlphaFactor
             }
         );
 
@@ -271,18 +180,11 @@ class WboitRenderer {
             "tRevealage": { value: null }
         };
 
-        const copyUniforms = {
-            'tDiffuse': { value: null },
-            'opacity': { value: 1.0 }
-        };
-
         const compositingMaterial = new THREE.ShaderMaterial(
             {
                 vertexShader: vertexShaderQuad,
                 fragmentShader: fragmentShaderCompositing,
                 uniforms: compositingUniforms,
-                // fragmentShader: fragmentShaderQuad,
-                // uniforms: copyUniforms,
                 transparent: true,
                 blending: THREE.CustomBlending,
                 blendEquation: THREE.AddEquation,
@@ -317,21 +219,11 @@ class WboitRenderer {
         const clearColorZero = new THREE.Color( 0, 0, 0 );
         const clearColorOne = new THREE.Color( 1, 1, 1 );
 
+        // render
+
         function render( scene, camera ) {
 
-            // // Render to Texture
-            // scene.overrideMaterial = accumulationMaterial;
-            // renderer.setRenderTarget( accumulationTexture );
-            // renderer.render( scene, camera );
-            // scene.overrideMaterial = null;
-
-            // copyUniforms[ 'tDiffuse' ].value = accumulationTexture.texture;
-            // renderer.setRenderTarget( null );
-            // renderer.render( quadMesh, quadCamera );
-            // return;
-
-            // // Wboit
-            renderer.setClearColor( clearColorZero, 1.0 );
+            renderer.setClearColor( clearColorZero, 0.1 );
             renderer.clearColor();
 
             scene.overrideMaterial = accumulationMaterial;
@@ -341,6 +233,8 @@ class WboitRenderer {
             scene.overrideMaterial = revealageMaterial;
             renderer.setRenderTarget( revealageTexture );
             renderer.render( scene, camera );
+
+            renderer.clearColor();
 
             compositingUniforms[ 'tAccumulation' ].value = accumulationTexture.texture;
             compositingUniforms[ 'tRevealage' ].value = revealageTexture.texture;
@@ -389,6 +283,7 @@ export { WboitRenderer };
 //      Description:    Depth Peel Example
 //      Author:         Dusan Bosnjak <@pailhead>
 //      Source:         https://github.com/mrdoob/three.js/pull/15490
+//                      https://raw.githack.com/pailhead/three.js/depth-peel-stencil/examples/webgl_materials_depthpeel.html
 //
 //      Description:    WBOIT Example
 //      Author:         Alexander Rose <@arose>

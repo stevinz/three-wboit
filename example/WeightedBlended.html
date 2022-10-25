@@ -75,63 +75,66 @@
                 // geometry
 
                 const vertices = new Float32Array( [
-
-                    // center quad (yellow)
-                    1, 1, 0, - 1, 1, 0, - 1, - 1, 0, 1, 1, 0, - 1, - 1, 0, 1, - 1, 0,
-
-                    // bottom left quad (red)
-                    0, 0, - 1, - 2, 0, - 1, - 2, - 2, - 1, 0, 0, - 1, - 2, - 2, - 1, 0, - 2, - 1,
-
-                    // top right quad (blue)
-                    2, 2, 1, 0, 2, 1, 0, 0, 1, 2, 2, 1, 0, 0, 1, 2, 0, 1
-
-                ]);
+                    1, 1, 0, - 1, 1, 0, - 1, - 1, 0, 1, 1, 0, - 1, - 1, 0, 1, - 1, 0,               // yellow, center
+                    0, 0, - 1, - 2, 0, - 1, - 2, - 2, - 1, 0, 0, - 1, - 2, - 2, - 1, 0, - 2, - 1,   // red, bottom left
+                    2, 2, 1, 0, 2, 1, 0, 0, 1, 2, 2, 1, 0, 0, 1, 2, 0, 1                            // blue, top right
+                ] );
 
                 const geometry = new THREE.BufferGeometry();
                 geometry.setAttribute( 'position', new THREE.BufferAttribute( vertices, 3 ) );
 
+                // colors
+
                 const colors = new Float32Array( 6 /* points */ * 3 /* faces */ * 4 /* stride */, 4 );
-                for ( let i = 0; i < 6; i ++ ) { colors.set( [ 1, 1, 0, 0.5 ], i * 4 ); }
-                for ( let i = 6; i < 12; i ++ ) { colors.set( [ 1, 0, 0, 0.5 ], i * 4 ); }
-                for ( let i = 12; i < 18; i ++ ) { colors.set( [ 0, 0, 1, 0.5 ], i * 4 ); }
+                for ( let i = 0; i < 6; i ++ ) { colors.set( [ 1, 1, 0, 0.75 ], i * 4 ); }
+                for ( let i = 6; i < 12; i ++ ) { colors.set( [ 1, 0, 0, 0.75 ], i * 4 ); }
+                for ( let i = 12; i < 18; i ++ ) { colors.set( [ 0, 0, 1, 0.75 ], i * 4 ); }
                 geometry.setAttribute( 'color', new THREE.BufferAttribute( colors, 4 ) );
 
                 // material
 
-                material = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, transparent: true, vertexColors: true, opacity: 0.5 });
+                material = new THREE.MeshBasicMaterial( {
+                    side: THREE.DoubleSide,
+                    transparent: true,
+                    // vertexAlphas: true,
+                    vertexColors: true,
+                    opacity: 1.0,
+                    depthTest: true,
+                    depthWrite: true,
+                } );
 
                 const mesh = new THREE.Mesh( geometry, material );
                 scene.add( mesh );
 
                 //
 
-                // setup objects
+                // // setup objects
 
-                const numItems = 10;
-                const boxGeometry = new THREE.BoxGeometry( 2, 2, 2, 1, 1, 1 );
+                // const numItems = 10;
+                // const boxGeometry = new THREE.BoxGeometry( 2, 2, 2, 1, 1, 1 );
 
-				for ( let i = 0 ; i < numItems ; i ++ ) {
+				// for ( let i = 0 ; i < numItems ; i ++ ) {
 
-                    const mesh = new THREE.Mesh(
-                        boxGeometry,
-                        new THREE.MeshPhongMaterial({ side: THREE.DoubleSide, transparent: true, opacity: 0.5 })
-                        // new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, transparent: true, opacity: 0.5 })
-                    );
+                //     const mesh = new THREE.Mesh(
+                //         boxGeometry,
+                //         new THREE.MeshPhongMaterial({ side: THREE.DoubleSide, transparent: true, opacity: 0.5 })
+                //         // new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, transparent: true, opacity: 0.5 })
+                //     );
 
-                    mesh.renderOrder = 1;
+                //     mesh.renderOrder = 1;
 
-                    // transparentObjects.push(mesh);
-                    // mesh.material.onBeforeCompile = colorOnBeforeCompile;
+                //     // transparentObjects.push(mesh);
+                //     // mesh.material.onBeforeCompile = colorOnBeforeCompile;
 
-                    mesh.material.color = new THREE.Color().setHSL( (i % 2 == 0 ? numItems - i : i ) / numItems, 1, 0.5 );
+                //     mesh.material.color = new THREE.Color().setHSL( (i % 2 == 0 ? numItems - i : i ) / numItems, 1, 0.5 );
 
-                    mesh.rotation.y = i * Math.PI / 2;
-                    mesh.scale.y = 2;
-                    mesh.position.y = ( i - numItems / 2 ) * 2.5;
-                    mesh.scale.x = 20;
+                //     mesh.rotation.y = i * Math.PI / 2;
+                //     mesh.scale.y = 2;
+                //     mesh.position.y = ( i - numItems / 2 ) * 2.5;
+                //     mesh.scale.x = 20;
 
-                    scene.add( mesh );
-                }
+                //     scene.add( mesh );
+                // }
 
                 // // const opaque = new THREE.MeshBasicMaterial({color:'white'})
                 // const opaque = new THREE.MeshPhongMaterial({color:'white'})
@@ -147,13 +150,13 @@
                 // m.scale.y = 3.5
                 // }
 
-                // lights
+                // // lights
 
-                scene.add( new THREE.AmbientLight( 0xffffff, .5 ) );
+                // scene.add( new THREE.AmbientLight( 0xffffff, .5 ) );
 
-                const light = new THREE.PointLight( 0xffffff, 0.8 );
-                light.position.set( 20, 20, 20 );
-                scene.add( light );
+                // const light = new THREE.PointLight( 0xffffff, 0.8 );
+                // light.position.set( 20, 20, 20 );
+                // scene.add( light );
 
                 // events
 
@@ -200,10 +203,10 @@
 
                 const rgba = Array.apply( [], pixelBuffer );
                 document.getElementById( 'color' ).innerHTML = [
-                    ( rgba[0]/255 ).toPrecision( 2 ),
-                    ( rgba[1]/255 ).toPrecision( 2 ),
-                    ( rgba[2]/255 ).toPrecision( 2 ),
-                    ( rgba[3]/255 ).toPrecision( 2 )
+                    ( rgba[ 0 ] / 255 ).toPrecision( 2 ),
+                    ( rgba[ 1 ] / 255 ).toPrecision( 2 ),
+                    ( rgba[ 2 ] / 255 ).toPrecision( 2 ),
+                    ( rgba[ 3 ] / 255 ).toPrecision( 2 )
                 ].join( ", " );
 
             }
