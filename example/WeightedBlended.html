@@ -55,8 +55,6 @@
             init();
             animate();
 
-
-
             function init() {
 
                 renderer = new THREE.WebGLRenderer( { preserveDrawingBuffer: true } );
@@ -85,55 +83,32 @@
 
                 // geometry
 
-                let geometry = new THREE.BufferGeometry();
-
-                let vertices = new Float32Array( [
+                const vertices = new Float32Array( [
 
                     // center quad (yellow)
-                     1,  1,  0,
-                    -1,  1,  0,
-                    -1, -1,  0,
-                     1,  1,  0,
-                    -1, -1,  0,
-                     1, -1,  0,
+                    1, 1, 0, - 1, 1, 0, - 1, - 1, 0, 1, 1, 0, - 1, - 1, 0, 1, - 1, 0,
 
                     // bottom left quad (red)
-                     0,  0, -1,
-                    -2,  0, -1,
-                    -2, -2, -1,
-                     0,  0, -1,
-                    -2, -2, -1,
-                     0, -2, -1,
+                    0, 0, - 1, - 2, 0, - 1, - 2, - 2, - 1, 0, 0, - 1, - 2, - 2, - 1, 0, - 2, - 1,
 
                     // top right quad (blue)
-                     2,  2,  1,
-                     0,  2,  1,
-                     0,  0,  1,
-                     2,  2,  1,
-                     0,  0,  1,
-                     2,  0,  1
+                    2, 2, 1, 0, 2, 1, 0, 0, 1, 2, 2, 1, 0, 0, 1, 2, 0, 1
 
                 ]);
 
+                const geometry = new THREE.BufferGeometry();
                 geometry.setAttribute( 'position', new THREE.BufferAttribute( vertices, 3 ) );
 
-                let colors = new Float32Array( 6 * 3 * 4, 4 );
-
-                // center quad (yellow)
-                for ( let i = 0; i < 6; i ++ ) colors.set( [ 1, 1, 0, 0.5 ], i * 4 );
-
-                // bottom left quad (red)
-                for ( let i = 6; i < 12; i ++ ) colors.set( [ 1, 0, 0, 0.5 ], i * 4 );
-
-                // top right quad (blue)
-                for ( let i = 12; i < 18; i ++ ) colors.set( [ 0, 0, 1, 0.5 ], i * 4 );
-
+                const colors = new Float32Array( 6 /* points */ * 3 /* faces */ * 4 /* stride */, 4 );
+                for ( let i = 0; i < 6; i ++ ) { colors.set( [ 1, 1, 0, 0.5 ], i * 4 ); }
+                for ( let i = 6; i < 12; i ++ ) { colors.set( [ 1, 0, 0, 0.5 ], i * 4 ); }
+                for ( let i = 12; i < 18; i ++ ) { colors.set( [ 0, 0, 1, 0.5 ], i * 4 ); }
                 geometry.setAttribute( 'color', new THREE.BufferAttribute( colors, 4 ) );
 
                 // material
 
-                material = wboitPass.standardMaterial;
-                transparentMaterial = wboitPass.transparentMaterial;
+                material = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, vertexColors: true, vertexAlphas: true });
+                transparentMaterial = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, vertexColors: true, vertexAlphas: true, opacity: 0.5, transparent: true });
 
                 const mesh = new THREE.Mesh( geometry, material );
                 scene.add( mesh );
@@ -207,11 +182,13 @@
 
                 } else if ( btnOpaque.checked ) {
 
+                    renderer.setClearColor( 0.0, 0.0 );
                     renderer.render( scene, camera );
 
                 } else {
 
                     scene.overrideMaterial = transparentMaterial;
+                    renderer.setClearColor( 0.0, 0.0 );
                     renderer.render( scene, camera );
                     scene.overrideMaterial = null;
 

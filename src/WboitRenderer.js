@@ -61,26 +61,10 @@ const vertexShader = `
         vec4 z4 = modelViewMatrix * vec4( position, 1.0 );
         z = ( z4.xyz / z4.w ).z;
         z = z4.z;
+
         // z = gl_Position.z;
         // z = position.z;
         // z = ( viewMatrix * vec4( position, 1.0 ) ).z;
-
-    }
-`;
-
-const fragmentShader = `
-    precision highp float;
-    precision highp int;
-
-    varying vec4 vColor;
-
-    varying float z;
-
-    void main() {
-
-        z; // to silence 'not read' warnings
-        vec4 color = vec4( vColor );
-        gl_FragColor = color;
 
     }
 `;
@@ -98,13 +82,13 @@ const vertexShaderQuad = `
 
 const fragmentShaderQuad = `
     uniform sampler2D tDiffuse;
-
+    uniform float opacity;
     varying vec2 vUv;
 
     void main() {
 
         vec4 texel = texture2D( tDiffuse, vUv );
-        gl_FragColor = texel;
+        gl_FragColor = opacity * texel;
 
     }
 `;
@@ -132,15 +116,13 @@ const fragmentShaderAccumulation = `
 
     varying vec4 vColor;
 
-    float w( float a )
-    {
+    float w( float a ) {
 
         // eq. 10
         // return a * max( 1e-2, 3.0 * 1e3 * pow( 1.0 - gl_FragCoord.z, 3.0 ) );
 
         // eq. 9
-        //return a * clamp( 0.03 / ( 1e-5 + pow( abs( z ) / 200.0, 4.0 ) ), 1e-2, 3e3 );
-
+        // return a * clamp( 0.03 / ( 1e-5 + pow( abs( z ) / 200.0, 4.0 ) ), 1e-2, 3e3 );
 
         // weight function design
         // float colorResistance = 1.0; // 1.0
@@ -165,8 +147,7 @@ const fragmentShaderAccumulation = `
 
     }
 
-    void main()
-    {
+    void main() {
 
         z; // to silence 'not read' warnings
         float ai = vColor.a;
@@ -184,15 +165,13 @@ const fragmentShaderRevealage = `
 
     varying vec4 vColor;
 
-    float w( float a )
-    {
+    float w( float a ) {
 
         // eq. 10
         // return a * max( 1e-2, 3.0 * 1e3 * pow( 1.0 - gl_FragCoord.z, 3.0 ) );
 
         // eq. 9
-        //return a * clamp( 0.03 / ( 1e-5 + pow( abs( z ) / 200.0, 4.0 ) ), 1e-2, 3e3 );
-
+        // return a * clamp( 0.03 / ( 1e-5 + pow( abs( z ) / 200.0, 4.0 ) ), 1e-2, 3e3 );
 
         // weight function design
         // float colorResistance = 1.0; // 1.0
@@ -217,8 +196,7 @@ const fragmentShaderRevealage = `
 
     }
 
-    void main()
-    {
+    void main() {
 
         z; // to silence 'not read' warnings
         float ai = vColor.a;
@@ -235,25 +213,6 @@ const fragmentShaderRevealage = `
 class WboitRenderer {
 
     constructor ( renderer ) {
-
-        // materials
-
-        this.standardMaterial = new THREE.RawShaderMaterial(
-            {
-                vertexShader: vertexShader,
-                fragmentShader: fragmentShader,
-                side: THREE.DoubleSide
-            }
-        );
-
-        this.transparentMaterial = new THREE.RawShaderMaterial(
-            {
-                vertexShader: vertexShader,
-                fragmentShader: fragmentShader,
-                side: THREE.DoubleSide,
-                transparent: true
-            }
-        );
 
         // accumulation shader
 
@@ -316,21 +275,39 @@ class WboitRenderer {
         // compositing shader
 
         const compositingUniforms = {
-            "tAccumulation": { type: "t", value: null },
-            "tRevealage": { type: "t", value: null }
+            "tAccumulation": { value: null },
+            "tRevealage": { value: null }
+        };
+
+        const copyUniforms = {
+            'tDiffuse': { value: null },
+            'opacity': { value: 1.0 }
         };
 
         const compositingMaterial = new THREE.ShaderMaterial(
             {
-                uniforms: compositingUniforms,
                 vertexShader: vertexShaderQuad,
-                // fragmentShader: fragmentShaderCompositing,
-                fragmentShader: fragmentShaderQuad,
+
+                fragmentShader: fragmentShaderCompositing,
+                uniforms: compositingUniforms,
+
+                // fragmentShader: fragmentShaderQuad,
+                // uniforms: copyUniforms,
+
                 transparent: true,
+
+                // blending: THREE.CustomBlending,
+                // blendEquation: THREE.AddEquation,
+                // blendSrc: THREE.OneMinusSrcAlphaFactor,
+                // blendDst: THREE.OneFactor
+
                 blending: THREE.CustomBlending,
                 blendEquation: THREE.AddEquation,
-                blendSrc: THREE.OneMinusSrcAlphaFactor,
-                blendDst: THREE.SrcAlphaFactor
+                blendSrc: THREE.ZeroFactor,
+                blendDst: THREE.OneMinusSrcColorFactor,
+                // blendEquationAlpha: THREE.AddEquation,
+                // blendSrcAlpha: THREE.ZeroFactor,
+                // blendDstAlpha: THREE.OneMinusSrcAlphaFactor,
             }
         );
 
@@ -340,8 +317,7 @@ class WboitRenderer {
         quadGeometry.setAttribute( 'position', new THREE.Float32BufferAttribute( [ - 1, 3, 0, - 1, - 1, 0, 3, - 1, 0 ], 3 ) );
         quadGeometry.setAttribute( 'uv', new THREE.Float32BufferAttribute( [ 0, 2, 0, 0, 2, 0 ], 2 ) );
 
-        const quadScene  = new THREE.Scene();
-        quadScene.add( new THREE.Mesh( quadGeometry, compositingMaterial ) );
+        const quadMesh = new THREE.Mesh( quadGeometry, compositingMaterial );
 
         // events
 
@@ -360,31 +336,47 @@ class WboitRenderer {
 
         // background color
 
-        const clearColor = new THREE.Color( 0, 0, 0 );
-
-        this.setClearColor = function( newClearColor ) {
-
-            clearColor = newClearColor;
-
-        }
+        const clearColorZero = new THREE.Color( 0, 0, 0 );
+        const clearColorOne = new THREE.Color( 1, 1, 1 );
 
         function render( scene, camera ) {
 
-            renderer.setClearColor( clearColor, 1.0 );
+            // // Basic Render
+            // renderer.render( scene, camera );
+            // return;
+
+            // // Render to Texture
+            // scene.overrideMaterial = accumulationMaterial;
+            // renderer.setRenderTarget( accumulationTexture );
+            // renderer.render( scene, camera );
+            // scene.overrideMaterial = null;
+
+            // copyUniforms[ 'tDiffuse' ].value = accumulationTexture.texture;
+            // renderer.setRenderTarget( null );
+            // renderer.render( quadMesh, quadCamera );
+            // return;
+
+            // // Wboit
+            renderer.setClearColor( clearColorZero, 0.0 );
             renderer.clearColor();
 
             scene.overrideMaterial = accumulationMaterial;
-            renderer.render( scene, camera, accumulationTexture );
+            renderer.setRenderTarget( accumulationTexture );
+            renderer.render( scene, camera );
 
             scene.overrideMaterial = revealageMaterial;
-            renderer.render( scene, camera, revealageTexture );
+            renderer.setRenderTarget( revealageTexture );
+            renderer.setClearColor( clearColorOne, 1.0 );
+            renderer.clearColor();
+            renderer.render( scene, camera );
 
-            compositingUniforms[ "tAccumulation" ].value = accumulationTexture;
-            compositingUniforms[ "tRevealage" ].value = revealageTexture;
-
-            renderer.render( quadScene, quadCamera );
-
+            compositingUniforms[ 'tAccumulation' ].value = accumulationTexture.texture;
+            compositingUniforms[ 'tRevealage' ].value = revealageTexture.texture;
             scene.overrideMaterial = null;
+            renderer.setRenderTarget( null );
+            // renderer.setClearColor( clearColorZero, 1.0 );
+            // renderer.clear();
+            renderer.render( quadMesh, quadCamera );
 
         }
 
