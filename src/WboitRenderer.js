@@ -109,6 +109,21 @@ const fragmentShaderQuad = `
     }
 `;
 
+const fragmentShaderCompositing = `
+    varying vec2 vUv;
+
+    uniform sampler2D tAccumulation;
+    uniform sampler2D tRevealage;
+
+    void main()
+    {
+        vec4 accum = texture2D( tAccumulation, vUv );
+        float r = texture2D( tRevealage, vUv ).r;
+
+        gl_FragColor = vec4( accum.rgb / clamp( accum.a, 1e-9, 5e9 ), r );
+    }
+`;
+
 const fragmentShaderAccumulation = `
     precision highp float;
     precision highp int;
@@ -212,21 +227,6 @@ const fragmentShaderRevealage = `
     }
 `;
 
-const fragmentShaderCompositing = `
-    varying vec2 vUv;
-
-    uniform sampler2D tAccumulation;
-    uniform sampler2D tRevealage;
-
-    void main()
-    {
-        vec4 accum = texture2D( tAccumulation, vUv );
-        float r = texture2D( tRevealage, vUv ).r;
-
-        gl_FragColor = vec4( accum.rgb / clamp( accum.a, 1e-9, 5e9 ), r );
-    }
-`;
-
 /////////////////////////////////////////////////////////////////////////////////////
 /////   Order Independent Transparency
 /////////////////////////////////////////////////////////////////////////////////////
@@ -324,7 +324,8 @@ class WboitRenderer {
             {
                 uniforms: compositingUniforms,
                 vertexShader: vertexShaderQuad,
-                fragmentShader: fragmentShaderCompositing,
+                // fragmentShader: fragmentShaderCompositing,
+                fragmentShader: fragmentShaderQuad,
                 transparent: true,
                 blending: THREE.CustomBlending,
                 blendEquation: THREE.AddEquation,
@@ -333,18 +334,25 @@ class WboitRenderer {
             }
         );
 
-        const quadCamera = new THREE.OrthographicCamera( -1, 1, 1, -1, 0, 1 );
+        const quadCamera = new THREE.OrthographicCamera( - 1, 1, 1, - 1, 0, 1 );
+
+        const quadGeometry = new THREE.BufferGeometry();
+        quadGeometry.setAttribute( 'position', new THREE.Float32BufferAttribute( [ - 1, 3, 0, - 1, - 1, 0, 3, - 1, 0 ], 3 ) );
+        quadGeometry.setAttribute( 'uv', new THREE.Float32BufferAttribute( [ 0, 2, 0, 0, 2, 0 ], 2 ) );
+
         const quadScene  = new THREE.Scene();
-        quadScene.add( new THREE.Mesh( new THREE.PlaneGeometry( 2, 2 ), compositingMaterial ) );
+        quadScene.add( new THREE.Mesh( quadGeometry, compositingMaterial ) );
 
         // events
 
-        function onWindowResize(){
+        function onWindowResize() {
 
             // FIXME?? results in distorted image
 
             accumulationTexture.setSize( window.innerWidth, window.innerHeight );
             revealageTexture.setSize( window.innerWidth, window.innerHeight );
+
+            render();
 
         }
 
@@ -360,7 +368,7 @@ class WboitRenderer {
 
         }
 
-        this.render = function( scene, camera ) {
+        function render( scene, camera ) {
 
             renderer.setClearColor( clearColor, 1.0 );
             renderer.clearColor();
@@ -379,6 +387,8 @@ class WboitRenderer {
             scene.overrideMaterial = null;
 
         }
+
+        this.render = render;
 
     }
 

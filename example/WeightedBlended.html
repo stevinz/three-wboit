@@ -63,9 +63,9 @@
                 document.body.appendChild( renderer.domElement );
 
                 gl = renderer.getContext();
-                // if ( ! gl.getExtension( "OES_texture_float" ) ) {
-                //     console.error( "No OES_texture_float support for float textures!" );
-                // }
+                if ( ! renderer.capabilities.floatFragmentTextures ) {
+                    console.error( "No OES_texture_float support for float textures!" );
+                }
 
                 wboitPass = new WboitRenderer( renderer );
 
@@ -178,12 +178,11 @@
 
                 controls.update();
 
-                gl.readPixels(
-                    mouse.x, window.innerHeight - mouse.y, 1, 1,
-                    gl.RGBA, gl.UNSIGNED_BYTE, pixelBuffer
-                );
+                // update color under mouse
 
-                let rgba = Array.apply( [], pixelBuffer );
+                gl.readPixels( mouse.x, window.innerHeight - mouse.y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixelBuffer );
+
+                const rgba = Array.apply( [], pixelBuffer );
                 document.getElementById( 'color' ).innerHTML = [
                     ( rgba[0]/255 ).toPrecision( 2 ),
                     ( rgba[1]/255 ).toPrecision( 2 ),
@@ -195,8 +194,12 @@
 
             function render() {
 
-                // draw opaque surfaces
-                // ...
+                // FIRST: Draw Opaque Objects
+                //
+                //      TODO
+                //
+
+                // THEN: Draw Transparent Objects
 
                 if ( btnOit.checked ) {
 
@@ -213,19 +216,6 @@
                     scene.overrideMaterial = null;
 
                 }
-
-                // let i, o, u;
-                // let matrix = new THREE.Matrix4();
-                // let objects = scene.children;
-                // let nObjects = objects.length;
-
-                // camera.updateMatrix();
-                // camera.updateMatrixWorld( true );
-                // camera.matrixWorldInverse.getInverse( camera.matrixWorld );
-                // camera.updateProjectionMatrix();
-
-                // console.log( camera );
-                // console.log( camera.matrixWorld.elements );
 
             }
 
