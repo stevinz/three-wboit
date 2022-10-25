@@ -1,1 +1,1 @@
-export { WeightedBlended } from './WeightedBlended.js';
+export { WboitRenderer } from './WboitRenderer.js';
