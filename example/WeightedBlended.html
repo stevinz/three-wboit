@@ -35,13 +35,14 @@
 			import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 
 			import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+            import { TexturePass } from 'three/addons/postprocessing/TexturePass.js';
 
             import { WboitRenderer } from '../src/WboitRenderer.js';
 
 			let gl;
             let camera, controls, scene, renderer;
 
-            let wboitPass;
+            let texturePass, wboitPass;
 
             let mouse = new THREE.Vector2();
             let pixelBuffer = new Uint8Array( 4 );
@@ -51,6 +52,7 @@
 
             init();
             animate();
+            render();
 
             function init() {
 
@@ -175,6 +177,13 @@
                 // light.position.set( 20, 20, 20 );
                 // scene.add( light );
 
+                // background
+
+                const textureLoader = new THREE.TextureLoader();
+                texturePass = new TexturePass();
+                texturePass.renderToScreen = true;
+                texturePass.map = textureLoader.load( './textures/hardwood2_diffuse.jpg', map => onWindowResize() );
+
                 // events
 
                 window.addEventListener( 'resize', onWindowResize, false );
@@ -185,8 +194,6 @@
 
                 btnWboit.addEventListener( 'click', render, false );
                 btnNormal.addEventListener( 'click', render, false );
-
-                onWindowResize();
 
             }
 
@@ -230,16 +237,32 @@
 
             function render() {
 
+                let oldAutoClear = renderer.autoClear;
+                renderer.autoClear = false;
+
+                // background
+
+                renderer.setClearColor( 0.0, 0.0 );
+                renderer.clear();
+                texturePass.render( renderer );
+
+                // scene
+
                 if ( btnWboit.checked ) {
 
+                    wboitPass.enabled = true;
                     wboitPass.render( scene, camera );
 
                 } else {
 
-                    renderer.setClearColor( 0.0, 0.0 );
+                    wboitPass.enabled = false;
                     renderer.render( scene, camera );
 
                 }
+
+                // reset
+
+                renderer.autoClear = oldAutoClear;
 
             }
 

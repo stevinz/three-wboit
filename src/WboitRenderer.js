@@ -157,6 +157,8 @@ class WboitRenderer {
 
     constructor ( renderer ) {
 
+        const self = this;
+
         // Materials
 
         const copyMaterial = new THREE.ShaderMaterial({
@@ -224,10 +226,10 @@ class WboitRenderer {
                 "tTransparent": { value: null },
             },
             transparent: true,
-            blending: THREE.CustomBlending,
-            blendEquation: THREE.AddEquation,
-            blendSrc: THREE.OneFactor,
-            blendDst: THREE.ZeroFactor,
+            // blending: THREE.CustomBlending,
+            // blendEquation: THREE.AddEquation,
+            // blendSrc: THREE.OneFactor,
+            // blendDst: THREE.ZeroFactor,
         });
 
         // Render Targets
@@ -238,6 +240,7 @@ class WboitRenderer {
             type: THREE.FloatType,
             format: THREE.RGBAFormat,
             stencilBuffer: false,
+            depthBuffer: true,
         });
 
         const opaqueTarget = new THREE.WebGLRenderTarget( window.innerWidth, window.innerHeight, {
@@ -253,24 +256,26 @@ class WboitRenderer {
             type: THREE.FloatType, format: THREE.RGBAFormat, stencilBuffer: false, depthBuffer: false,
         });
 
-        // Full Screen Quad
+        // Full Screen Quads
 
         const quadCamera = new THREE.OrthographicCamera( - 1, 1, 1, - 1, 0, 1 );
         const quadGeometry = new THREE.BufferGeometry();
         quadGeometry.setAttribute( 'position', new THREE.Float32BufferAttribute( [ - 1, 3, 0, - 1, - 1, 0, 3, - 1, 0 ], 3 ) );
         quadGeometry.setAttribute( 'uv', new THREE.Float32BufferAttribute( [ 0, 2, 0, 0, 2, 0 ], 2 ) );
-        const copyQuad = new THREE.Mesh( quadGeometry, copyMaterial );
-        const compositingQuad = new THREE.Mesh( quadGeometry, compositingMaterial );
-        const finalQuad = new THREE.Mesh( quadGeometry, finalMaterial );
+
+        const copyQuad = new THREE.Mesh( quadGeometry.clone(), copyMaterial );
+        const compositingQuad = new THREE.Mesh( quadGeometry.clone(), compositingMaterial );
+        const finalQuad = new THREE.Mesh( quadGeometry.clone(), finalMaterial );
 
         // Events
 
         function onWindowResize() {
-            baseTarget.setSize( window.innerWidth, window.innerHeight );
-            opaqueTarget.setSize( window.innerWidth, window.innerHeight );
-            accumulationTarget.setSize( window.innerWidth, window.innerHeight );
-            revealageTarget.setSize( window.innerWidth, window.innerHeight );
-            render();
+            if (self.enabled === true) {
+                baseTarget.setSize( window.innerWidth, window.innerHeight );
+                opaqueTarget.setSize( window.innerWidth, window.innerHeight );
+                accumulationTarget.setSize( window.innerWidth, window.innerHeight );
+                revealageTarget.setSize( window.innerWidth, window.innerHeight );
+            }
         }
 
         window.addEventListener( 'resize', onWindowResize, false );
@@ -294,10 +299,9 @@ class WboitRenderer {
         const clearColorZero = new THREE.Color( 0.0, 0.0, 0.0 );
         const clearColorOne = new THREE.Color( 1.0, 1.0, 1.0 );
 
-        let currentClearAlpha;
-        let currentClearColor = new THREE.Color();
-        let currentRenderTarget;
-        let currentOverrideMaterial;
+        let currentAutoClear;
+        let currentClearAlpha, currentClearColor = new THREE.Color();
+        let currentRenderTarget, currentOverrideMaterial;
 
         function copyTarget( fromTarget, toTarget ) {
             copyMaterial.uniforms[ 'tDiffuse' ].value = fromTarget.texture;
@@ -309,6 +313,8 @@ class WboitRenderer {
         function render( scene, camera, writeBuffer = null ) {
 
             // Save Current State
+            currentAutoClear = renderer.autoClear;
+            renderer.autoClear = false;
             currentRenderTarget = renderer.getRenderTarget();
             renderer.getClearColor( currentClearColor );
 			currentClearAlpha = renderer.getClearAlpha();
@@ -360,6 +366,7 @@ class WboitRenderer {
             finalMaterial.uniforms[ 'tOpaque' ].value = opaqueTarget.texture;
             finalMaterial.uniforms[ 'tTransparent' ].value = baseTarget.texture;
             renderer.setRenderTarget( writeBuffer );
+            // renderer.clear();
             renderer.render( finalQuad, quadCamera );
 
             //
@@ -369,6 +376,7 @@ class WboitRenderer {
             renderer.setRenderTarget( currentRenderTarget );
             renderer.setClearColor( currentClearColor, currentClearAlpha );
             scene.overrideMaterial = currentOverrideMaterial;
+            renderer.autoClear = currentAutoClear;
 
         }
 
