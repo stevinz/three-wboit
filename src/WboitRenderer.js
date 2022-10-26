@@ -15,9 +15,8 @@
 //      Dual Depth Peeling, 2008 (many passes)
 //      Weighted, Blended, 2013 (fastest, approximate)
 //
-//  THREE Issues
-//      Issue: Order Independent Transparency
-//          https://github.com/mrdoob/three.js/issues/9977
+//  THREE Issue:
+//      https://github.com/mrdoob/three.js/issues/9977
 //
 //  Implemented WebGL
 //      https://github.com/tsherif/webgl2examples/blob/master/oit.html
@@ -64,14 +63,14 @@ const fragmentShaderAccumulation = `
         /* ---------- */
 
         // // Paper
-        // float tmp = ( color.a * 8.0 + 0.01 ) * ( - gl_FragCoord.z * 0.95 + 1.0 );
-        // float w = clamp( tmp * tmp * tmp * 1e3, 1e-2, 3e2 );
+        float tmp = ( color.a * 8.0 + 0.01 ) * ( - gl_FragCoord.z * 0.95 + 1.0 );
+        float w = clamp( tmp * tmp * tmp * 1e3, 1e-2, 3e2 );
 
         // // Molstar
         // float w = color.a * clamp( pow( 1.0 - gl_FragCoord.z, 2.0 ), 0.01, 1.0 );
 
         // // WebGL 2
-        float w = clamp( pow( min( 1.0, color.a * 10.0 ) + 0.01, 3.0 ) * 1e8 * pow( 1.0 - gl_FragCoord.z * 0.9, 3.0 ), 1e-2, 3e3 );
+        // float w = clamp( pow( min( 1.0, color.a * 10.0 ) + 0.01, 3.0 ) * 1e8 * pow( 1.0 - gl_FragCoord.z * 0.9, 3.0 ), 1e-2, 3e3 );
 
         // // Output
         gl_FragColor = vec4( color.rgb * w, color.a );
@@ -91,14 +90,14 @@ const fragmentShaderRevealage = `
         color.rgb *= color.a;               // EnsurePremultiplied
 
         // // Paper
-        // float tmp = ( color.a * 8.0 + 0.01 ) * ( - gl_FragCoord.z * 0.95 + 1.0 );
-        // float w = clamp( tmp * tmp * tmp * 1e3, 1e-2, 3e2 );
+        float tmp = ( color.a * 8.0 + 0.01 ) * ( - gl_FragCoord.z * 0.95 + 1.0 );
+        float w = clamp( tmp * tmp * tmp * 1e3, 1e-2, 3e2 );
 
         // // Molstar
         // float w = color.a * clamp( pow( 1.0 - gl_FragCoord.z, 2.0 ), 0.01, 1.0 );
 
         // // WebGL 2
-        float w = clamp( pow( min( 1.0, color.a * 10.0 ) + 0.01, 3.0 ) * 1e8 * pow( 1.0 - gl_FragCoord.z * 0.9, 3.0 ), 1e-2, 3e3 );
+        // float w = clamp( pow( min( 1.0, color.a * 10.0 ) + 0.01, 3.0 ) * 1e8 * pow( 1.0 - gl_FragCoord.z * 0.9, 3.0 ), 1e-2, 3e3 );
 
         // // Output
         gl_FragColor = vec4( color.a * w );
@@ -240,6 +239,8 @@ class WboitRenderer {
         // render
 
         function render( scene, camera ) {
+
+            renderer.setClearColor( 0.0, 1.0 );
 
             scene.overrideMaterial = accumulationMaterial;
             renderer.setRenderTarget( accumulationTexture );
