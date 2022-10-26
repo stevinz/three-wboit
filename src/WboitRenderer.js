@@ -52,6 +52,10 @@ const fragmentShaderAccumulation = `
 
     varying vec4 vColor;
 
+    float weight( float z, float a ) {
+        return clamp( pow( min( 1.0, a * 10.0 ) + 0.01, 3.0 ) * 1e8 * pow( 1.0 - z * 0.9, 3.0 ), 1e-2, 3e3 );
+    }
+
     void main() {
         vec4 color = vColor;                // Final lit rgba color we want to draw from transparent object
         vec4 transmit = vec4( 0.0 );        // TODO: Input color of pixel from full scene opaque object render
@@ -68,8 +72,12 @@ const fragmentShaderAccumulation = `
         // float w = clamp( tmp * tmp * tmp * 1e3, 1e-2, 3e2 );
         // gl_FragColor = color * w;
 
-        // // Molstar
-        float w = color.a * clamp( pow( 1.0 - gl_FragCoord.z, 2.0 ), 0.01, 1.0 );
+        // // // Molstar
+        // float w = color.a * clamp( pow( 1.0 - gl_FragCoord.z, 2.0 ), 0.01, 1.0 );
+        // gl_FragColor = vec4( color.rgb * w, color.a );
+
+        // // WebGL 2
+        float w = weight( gl_FragCoord.z, color.a );
         gl_FragColor = vec4( color.rgb * w, color.a );
     }
 `;
@@ -80,12 +88,21 @@ const fragmentShaderRevealage = `
 
     varying vec4 vColor;
 
+    float weight( float z, float a ) {
+        return clamp( pow( min( 1.0, a * 10.0 ) + 0.01, 3.0 ) * 1e8 * pow( 1.0 - z * 0.9, 3.0 ), 1e-2, 3e3 );
+    }
+
     void main() {
         vec4 color = vColor;                // Final lit rgba color we want to draw from transparent object
         vec4 transmit = vec4( 0.0 );        // TODO: Input color of pixel from full scene opaque object render
-        color.a *= color.a;                 // EnsurePremultiplied
+        color.rgb *= color.a;               // EnsurePremultiplied
 
-        float w = color.a * clamp( pow( 1.0 - gl_FragCoord.z, 2.0 ), 0.01, 1.0 );
+        // // Molstar
+        // float w = color.a * clamp( pow( 1.0 - gl_FragCoord.z, 2.0 ), 0.01, 1.0 );
+        // gl_FragColor = vec4( color.a * w );
+
+        // // WebGL 2
+        float w = weight( gl_FragCoord.z, color.a );
         gl_FragColor = vec4( color.a * w );
     }
 `;
@@ -121,9 +138,9 @@ const fragmentShaderCompositing = `
 
         // // From molstar / webgl2
         vec4 accum = texture2D( tAccumulation, vUv );
-        float r = 1.0 - accum.a;
+        float a = 1.0 - accum.a;
         accum.a = texture2D( tRevealage, vUv ).r;
-        gl_FragColor = vec4( accum.rgb / clamp( accum.a, 0.00000001, 50000.0 ), r );
+        gl_FragColor = vec4( a * accum.rgb / clamp( accum.a, 0.00000001, 50000.0 ), a );
     }
 `;
 
@@ -180,9 +197,16 @@ class WboitRenderer {
             fragmentShader: fragmentShaderCompositing,
             uniforms: compositingUniforms,
             transparent: true,
+            // blending: THREE.CustomBlending,
+            // blendEquation: THREE.AddEquation,
+            // blendSrc: THREE.SrcAlphaFactor,
+            // blendDst: THREE.OneMinusSrcAlphaFactor,
+            // blendEquationAlpha: THREE.AddEquation,
+            // blendSrcAlpha: THREE.OneFactor,
+            // blendDstAlpha: THREE.OneMinusSrcAlphaFactor
             blending: THREE.CustomBlending,
             blendEquation: THREE.AddEquation,
-            blendSrc: THREE.SrcAlphaFactor,
+            blendSrc: THREE.OneFactor,
             blendDst: THREE.OneMinusSrcAlphaFactor,
             blendEquationAlpha: THREE.AddEquation,
             blendSrcAlpha: THREE.OneFactor,
