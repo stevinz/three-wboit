@@ -87,9 +87,9 @@ const fragmentShaderAccumulation = `
     }
 
     void main() {
-        vec4 color = vColor;                // Final lit rgba color of transparent object to draw
-        vec4 transmit = vec4( 0.0 );        // TODO: Input color of pixel from full scene opaque object render
-        color.rgb *= color.a;               // EnsurePremultiplied
+        vec4 color = vColor;                            // Final lit rgba color of transparent object to draw
+        vec4 transmit = vec4( 0.0 );                    // TODO: Pixel from opaque object render
+        color.rgb *= color.a;                           // EnsurePremultiplied
 
         /* ---------- */
         /* TODO: Modulate, i.e. overwrite existing opaque object render */
@@ -109,8 +109,8 @@ const fragmentShaderRevealage = `
     varying vec2 vUv;
 
     void main() {
-        vec4 color = vColor;                // Final lit rgba color of transparent object to draw
-        vec4 transmit = vec4( 0.0 );        // TODO: Input color of pixel from full scene opaque object render
+        vec4 color = vColor;                            // Final lit rgba color of transparent object to draw
+        vec4 transmit = vec4( 0.0 );                    // TODO: Pixel from opaque object render
 
         /* ---------- */
         /* TODO: Modulate, i.e. overwrite existing opaque object render */
@@ -134,20 +134,6 @@ const fragmentShaderCompositing = `
     }
 `;
 
-const fragmentShaderFinal = `
-    varying vec2 vUv;
-
-    uniform sampler2D tOpaque;
-    uniform sampler2D tTransparent;
-
-    void main() {
-        vec4 opaque = texture2D( tOpaque, vUv );
-        vec4 trans = texture2D( tTransparent, vUv );
-
-        gl_FragColor = opaque + trans;
-    }
-`;
-
 /////////////////////////////////////////////////////////////////////////////////////
 /////   Order Independent Transparency
 /////////////////////////////////////////////////////////////////////////////////////
@@ -167,7 +153,6 @@ class WboitRenderer {
             uniforms: {
                 "tDiffuse": { value: null },
             },
-            transparent: true,
             blending: THREE.CustomBlending,
             blendEquation: THREE.AddEquation,
             blendSrc: THREE.OneFactor,
@@ -218,20 +203,6 @@ class WboitRenderer {
             blendDst: THREE.SrcAlphaFactor,
         });
 
-        const finalMaterial = new THREE.ShaderMaterial({
-            vertexShader: vertexShaderQuad,
-            fragmentShader: fragmentShaderFinal,
-            uniforms: {
-                "tOpaque": { value: null },
-                "tTransparent": { value: null },
-            },
-            transparent: true,
-            // blending: THREE.CustomBlending,
-            // blendEquation: THREE.AddEquation,
-            // blendSrc: THREE.OneFactor,
-            // blendDst: THREE.ZeroFactor,
-        });
-
         // Render Targets
 
         const baseTarget = new THREE.WebGLRenderTarget( window.innerWidth, window.innerHeight, {
@@ -247,10 +218,12 @@ class WboitRenderer {
             minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter,
             type: THREE.FloatType, format: THREE.RGBAFormat, stencilBuffer: false, depthBuffer: false,
         });
+
         const accumulationTarget = new THREE.WebGLRenderTarget( window.innerWidth, window.innerHeight, {
             minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter,
             type: THREE.FloatType, format: THREE.RGBAFormat, stencilBuffer: false, depthBuffer: false,
         });
+
         const revealageTarget = new THREE.WebGLRenderTarget( window.innerWidth, window.innerHeight, {
             minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter,
             type: THREE.FloatType, format: THREE.RGBAFormat, stencilBuffer: false, depthBuffer: false,
@@ -265,14 +238,12 @@ class WboitRenderer {
 
         const copyQuad = new THREE.Mesh( quadGeometry.clone(), copyMaterial );
         const compositingQuad = new THREE.Mesh( quadGeometry.clone(), compositingMaterial );
-        const finalQuad = new THREE.Mesh( quadGeometry.clone(), finalMaterial );
 
         // Events
 
         function onWindowResize() {
             if (self.enabled === true) {
                 baseTarget.setSize( window.innerWidth, window.innerHeight );
-                opaqueTarget.setSize( window.innerWidth, window.innerHeight );
                 accumulationTarget.setSize( window.innerWidth, window.innerHeight );
                 revealageTarget.setSize( window.innerWidth, window.innerHeight );
             }
@@ -306,7 +277,6 @@ class WboitRenderer {
         function copyTarget( fromTarget, toTarget ) {
             copyMaterial.uniforms[ 'tDiffuse' ].value = fromTarget.texture;
             renderer.setRenderTarget( toTarget );
-            renderer.clear();
             renderer.render( copyQuad, quadCamera );
         }
 
@@ -320,8 +290,6 @@ class WboitRenderer {
 			currentClearAlpha = renderer.getClearAlpha();
             currentOverrideMaterial = scene.overrideMaterial;
 
-            //
-
             // Render Opaque Objects
             changeVisible( scene, true, false );
             scene.overrideMaterial = null;
@@ -330,6 +298,7 @@ class WboitRenderer {
             renderer.clear();
             renderer.render( scene, camera );
             copyTarget( baseTarget, opaqueTarget );
+            copyTarget( opaqueTarget, writeBuffer );
 
             // // Modulate Opaque Pixels
             // //
@@ -357,19 +326,8 @@ class WboitRenderer {
             compositingMaterial.uniforms[ 'tAccumulation' ].value = accumulationTarget.texture;
             compositingMaterial.uniforms[ 'tRevealage' ].value = revealageTarget.texture;
             scene.overrideMaterial = null;
-            renderer.setRenderTarget( baseTarget );
-            renderer.setClearColor( clearColorZero, 0.0 );
-            renderer.clear();
-            renderer.render( compositingQuad, quadCamera );
-
-            // Final Output, Combine Opaque / Transparent
-            finalMaterial.uniforms[ 'tOpaque' ].value = opaqueTarget.texture;
-            finalMaterial.uniforms[ 'tTransparent' ].value = baseTarget.texture;
             renderer.setRenderTarget( writeBuffer );
-            // renderer.clear();
-            renderer.render( finalQuad, quadCamera );
-
-            //
+            renderer.render( compositingQuad, quadCamera );
 
             // Restore Original State
             changeVisible( scene, true, true );
