@@ -60,13 +60,14 @@ const fragmentShaderAccumulation = `
         // gl_FragColor = vec4( ( vec3( 1.0 ) - transmit.rgb ) * color.a, transmit.a );
         // //
 
-        color.a *= 1.0 / 3.0 ;     //1.0 - ( transmit.r + transmit.g + transmit.b ) * ( 1.0 / 3.0 );
+        color.rgb *= color.a;
+        color.a *= 1.0 - ( ( transmit.r + transmit.g + transmit.b ) * ( 1.0 / 3.0 ) );
 
         float tmp = ( color.a * 8.0 + 0.01 ) * ( - gl_FragCoord.z * 0.95 + 1.0 );
         tmp /= sqrt( abs( gl_FragCoord.z ) );
-
         float w = clamp( tmp * tmp * tmp * 1e3, 1e-2, 3e2 );
-        gl_FragColor = color * w;
+
+        gl_FragColor = vec4( color.rgb, color.a );
     }
 `;
 
@@ -80,7 +81,13 @@ const fragmentShaderRevealage = `
         vec4 color = vColor;                // Final lit rgba color we want to draw from transparent object
         vec4 transmit = vec4( 0.0 );        // TODO: Input color of pixel from full scene opaque object render
 
-        color.a *= 1.0 / 3.0;       //1.0 - ( transmit.r + transmit.g + transmit.b ) * ( 1.0 / 3.0 );
+        // color.rgb *= color.a;
+        // color.a *= 1.0 - ( ( transmit.r + transmit.g + transmit.b ) * ( 1.0 / 3.0 ) );
+
+        float tmp = ( color.a * 8.0 + 0.01 ) * ( - gl_FragCoord.z * 0.95 + 1.0 );
+        tmp /= sqrt( abs( gl_FragCoord.z ) );
+        float w = clamp( tmp * tmp * tmp * 1e3, 1e-2, 3e2 );
+        color.a *= w;
 
         gl_FragColor = vec4( color.a, color.a, color.a, 1.0 );
     }
@@ -101,16 +108,20 @@ const fragmentShaderCompositing = `
     uniform sampler2D tAccumulation;
     uniform sampler2D tRevealage;
 
+    float max4 (vec4 v) {
+        return max( max( max( v.x, v.y ), v.z ), v.w );
+    }
+
     void main() {
         float reveal = texture2D( tRevealage, vUv ).r;
 
-        // // Save the blending and color texture fetch cost
-        // if (reveal == 1.0) { discard; }
+        // Save the blending and color texture fetch cost
+        if (reveal == 1.0) { discard; }
 
         vec4 accum = texture2D( tAccumulation, vUv );
 
-        // // Suppress overflow
-        // if ( isinf( maxComponent( abs( accum ) ) ) ) { accum.rgb = vec3( accum.a ); }
+        // Suppress overflow
+        if ( isinf( max4( abs( accum ) ) ) ) { accum.rgb = vec3( accum.a ); }
 
         gl_FragColor = vec4( accum.rgb / max( accum.a, 0.00001 ), reveal );
     }
@@ -217,19 +228,19 @@ class WboitRenderer {
 
             scene.overrideMaterial = accumulationMaterial;
             renderer.setRenderTarget( accumulationTexture );
-            // renderer.clearColor();
+            renderer.clearColor();
             renderer.render( scene, camera );
 
             scene.overrideMaterial = revealageMaterial;
             renderer.setRenderTarget( revealageTexture );
-            // renderer.clearColor();
+            renderer.clearColor();
             renderer.render( scene, camera );
 
             compositingUniforms[ 'tAccumulation' ].value = accumulationTexture.texture;
             compositingUniforms[ 'tRevealage' ].value = revealageTexture.texture;
             scene.overrideMaterial = null;
             renderer.setRenderTarget( null );
-            // renderer.clearColor();
+            renderer.clearColor();
             renderer.render( quadMesh, quadCamera );
         }
 
