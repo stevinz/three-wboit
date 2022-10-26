@@ -55,19 +55,22 @@ const fragmentShaderAccumulation = `
     void main() {
         vec4 color = vColor;                // Final lit rgba color we want to draw from transparent object
         vec4 transmit = vec4( 0.0 );        // TODO: Input color of pixel from full scene opaque object render
+        color.rgb *= color.a;               // EnsurePremultiplied
 
-        // // TODO: Overwrite existing opaque object render
-        // gl_FragColor = vec4( ( vec3( 1.0 ) - transmit.rgb ) * color.a, transmit.a );
-        // //
+        /* ---------- */
+        /* TODO: Modulate, i.e. overwrite existing opaque object render */
+        // gl_FragColor = vec4( color.a * ( vec3( 1.0 ) - transmit.rgb ), transmit.a );
+        // color.a *= 1.0 - ( ( transmit.r + transmit.g + transmit.b ) * ( 1.0 / 3.0 ) );
+        /* ---------- */
 
-        color.rgb *= color.a;
-        color.a *= 1.0 - ( ( transmit.r + transmit.g + transmit.b ) * ( 1.0 / 3.0 ) );
+        // // Paper
+        // float tmp = ( color.a * 8.0 + 0.01 ) * ( - gl_FragCoord.z * 0.95 + 1.0 );
+        // float w = clamp( tmp * tmp * tmp * 1e3, 1e-2, 3e2 );
+        // gl_FragColor = color * w;
 
-        float tmp = ( color.a * 8.0 + 0.01 ) * ( - gl_FragCoord.z * 0.95 + 1.0 );
-        tmp /= sqrt( abs( gl_FragCoord.z ) );
-        float w = clamp( tmp * tmp * tmp * 1e3, 1e-2, 3e2 );
-
-        gl_FragColor = vec4( color.rgb, color.a );
+        // // Molstar
+        float w = color.a * clamp( pow( 1.0 - gl_FragCoord.z, 2.0 ), 0.01, 1.0 );
+        gl_FragColor = vec4( color.rgb * w, color.a );
     }
 `;
 
@@ -80,16 +83,10 @@ const fragmentShaderRevealage = `
     void main() {
         vec4 color = vColor;                // Final lit rgba color we want to draw from transparent object
         vec4 transmit = vec4( 0.0 );        // TODO: Input color of pixel from full scene opaque object render
+        color.a *= color.a;                 // EnsurePremultiplied
 
-        // color.rgb *= color.a;
-        // color.a *= 1.0 - ( ( transmit.r + transmit.g + transmit.b ) * ( 1.0 / 3.0 ) );
-
-        float tmp = ( color.a * 8.0 + 0.01 ) * ( - gl_FragCoord.z * 0.95 + 1.0 );
-        tmp /= sqrt( abs( gl_FragCoord.z ) );
-        float w = clamp( tmp * tmp * tmp * 1e3, 1e-2, 3e2 );
-        color.a *= w;
-
-        gl_FragColor = vec4( color.a, color.a, color.a, 1.0 );
+        float w = color.a * clamp( pow( 1.0 - gl_FragCoord.z, 2.0 ), 0.01, 1.0 );
+        gl_FragColor = vec4( color.a * w );
     }
 `;
 
@@ -113,17 +110,20 @@ const fragmentShaderCompositing = `
     }
 
     void main() {
-        float reveal = texture2D( tRevealage, vUv ).r;
+        // // From Paper
+        // float reveal = texture2D( tRevealage, vUv ).r;
+        // /* Save the blending and color texture fetch cost */
+        // if (reveal == 1.0) { discard; }
+        // vec4 accum = texture2D( tAccumulation, vUv );
+        // /* Suppress overflow */
+        // // if ( isinf( max4( abs( accum ) ) ) ) { accum.rgb = vec3( accum.a ); }
+        // gl_FragColor = vec4( accum.rgb / max( accum.a, 0.00001 ), reveal );
 
-        // Save the blending and color texture fetch cost
-        if (reveal == 1.0) { discard; }
-
+        // // From molstar / webgl2
         vec4 accum = texture2D( tAccumulation, vUv );
-
-        // Suppress overflow
-        if ( isinf( max4( abs( accum ) ) ) ) { accum.rgb = vec3( accum.a ); }
-
-        gl_FragColor = vec4( accum.rgb / max( accum.a, 0.00001 ), reveal );
+        float r = 1.0 - accum.a;
+        accum.a = texture2D( tRevealage, vUv ).r;
+        gl_FragColor = vec4( accum.rgb / clamp( accum.a, 0.00000001, 50000.0 ), r );
     }
 `;
 
@@ -148,7 +148,10 @@ class WboitRenderer {
             blending: THREE.CustomBlending,
             blendEquation: THREE.AddEquation,
             blendSrc: THREE.OneFactor,
-            blendDst: THREE.OneFactor
+            blendDst: THREE.OneFactor,
+            blendEquationAlpha: THREE.AddEquation,
+            blendSrcAlpha: THREE.ZeroFactor,
+            blendDstAlpha: THREE.OneMinusSrcAlphaFactor
         });
 
         const revealageMaterial = new THREE.RawShaderMaterial({
@@ -160,8 +163,11 @@ class WboitRenderer {
             transparent: true,
             blending: THREE.CustomBlending,
             blendEquation: THREE.AddEquation,
-            blendSrc: THREE.ZeroFactor,
-            blendDst: THREE.OneMinusSrcColorFactor
+            blendSrc: THREE.OneFactor,
+            blendDst: THREE.OneFactor,
+            blendEquationAlpha: THREE.AddEquation,
+            blendSrcAlpha: THREE.ZeroFactor,
+            blendDstAlpha: THREE.OneMinusSrcAlphaFactor
         });
 
         const compositingUniforms = {
@@ -176,8 +182,11 @@ class WboitRenderer {
             transparent: true,
             blending: THREE.CustomBlending,
             blendEquation: THREE.AddEquation,
-            blendSrc: THREE.OneMinusSrcAlphaFactor,
-            blendDst: THREE.OneFactor,
+            blendSrc: THREE.SrcAlphaFactor,
+            blendDst: THREE.OneMinusSrcAlphaFactor,
+            blendEquationAlpha: THREE.AddEquation,
+            blendSrcAlpha: THREE.OneFactor,
+            blendDstAlpha: THREE.OneMinusSrcAlphaFactor
         });
 
         // render targets
@@ -219,29 +228,30 @@ class WboitRenderer {
         // background color
 
         const clearColorZero = new THREE.Color( 0, 0, 0 );
-        const clearColorOne = new THREE.Color( 1, 1, 1 );
+        const clearColorRed = new THREE.Color( 1, 0, 0 );
 
         // render
 
         function render( scene, camera ) {
+
             renderer.setClearColor( clearColorZero, 1.0 );
 
             scene.overrideMaterial = accumulationMaterial;
             renderer.setRenderTarget( accumulationTexture );
-            renderer.clearColor();
             renderer.render( scene, camera );
 
             scene.overrideMaterial = revealageMaterial;
             renderer.setRenderTarget( revealageTexture );
-            renderer.clearColor();
             renderer.render( scene, camera );
 
             compositingUniforms[ 'tAccumulation' ].value = accumulationTexture.texture;
             compositingUniforms[ 'tRevealage' ].value = revealageTexture.texture;
+
             scene.overrideMaterial = null;
             renderer.setRenderTarget( null );
-            renderer.clearColor();
+            renderer.clear();
             renderer.render( quadMesh, quadCamera );
+
         }
 
         this.render = render;
