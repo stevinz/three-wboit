@@ -86,9 +86,9 @@
                 // colors
 
                 const colors = new Float32Array( 6 /* points */ * 3 /* faces */ * 4 /* stride */, 4 );
-                for ( let i = 0; i < 6; i ++ ) { colors.set( [ 1, 1, 0, 0.75 ], i * 4 ); }          // yellow
-                for ( let i = 6; i < 12; i ++ ) { colors.set( [ 1, 0, 0, 0.5 ], i * 4 ); }         // red
-                for ( let i = 12; i < 18; i ++ ) { colors.set( [ 0, 0, 1, 0.5 ], i * 4 ); }        // blue
+                for ( let i = 0; i < 6; i ++ ) { colors.set( [ 1, 1, 0, 0.5 ], i * 4 ); }          // yellow
+                for ( let i = 6; i < 12; i ++ ) { colors.set( [ 1, 0, 0, 0.75 ], i * 4 ); }         // red
+                for ( let i = 12; i < 18; i ++ ) { colors.set( [ 0, 0, 1, 0.35 ], i * 4 ); }        // blue
                 geometry.setAttribute( 'color', new THREE.BufferAttribute( colors, 4 ) );
 
                 // material
@@ -221,12 +221,12 @@
 
                 if ( btnWboit.checked ) {
 
+                    renderer.setClearColor( 0.0, 1.0 );
                     wboitPass.render( scene, camera );
 
                 } else {
 
                     renderer.setClearColor( 0.0, 0.0 );
-                    // renderer.clearColor();
                     renderer.render( scene, camera );
 
                 }

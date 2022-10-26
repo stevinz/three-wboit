@@ -52,10 +52,6 @@ const fragmentShaderAccumulation = `
 
     varying vec4 vColor;
 
-    float weight( float z, float a ) {
-        return clamp( pow( min( 1.0, a * 10.0 ) + 0.01, 3.0 ) * 1e8 * pow( 1.0 - z * 0.9, 3.0 ), 1e-2, 3e3 );
-    }
-
     void main() {
         vec4 color = vColor;                // Final lit rgba color we want to draw from transparent object
         vec4 transmit = vec4( 0.0 );        // TODO: Input color of pixel from full scene opaque object render
@@ -70,14 +66,14 @@ const fragmentShaderAccumulation = `
         // // Paper
         // float tmp = ( color.a * 8.0 + 0.01 ) * ( - gl_FragCoord.z * 0.95 + 1.0 );
         // float w = clamp( tmp * tmp * tmp * 1e3, 1e-2, 3e2 );
-        // gl_FragColor = color * w;
 
-        // // // Molstar
+        // // Molstar
         // float w = color.a * clamp( pow( 1.0 - gl_FragCoord.z, 2.0 ), 0.01, 1.0 );
-        // gl_FragColor = vec4( color.rgb * w, color.a );
 
         // // WebGL 2
-        float w = weight( gl_FragCoord.z, color.a );
+        float w = clamp( pow( min( 1.0, color.a * 10.0 ) + 0.01, 3.0 ) * 1e8 * pow( 1.0 - gl_FragCoord.z * 0.9, 3.0 ), 1e-2, 3e3 );
+
+        // // Output
         gl_FragColor = vec4( color.rgb * w, color.a );
     }
 `;
@@ -88,21 +84,23 @@ const fragmentShaderRevealage = `
 
     varying vec4 vColor;
 
-    float weight( float z, float a ) {
-        return clamp( pow( min( 1.0, a * 10.0 ) + 0.01, 3.0 ) * 1e8 * pow( 1.0 - z * 0.9, 3.0 ), 1e-2, 3e3 );
-    }
-
     void main() {
+        // // Input
         vec4 color = vColor;                // Final lit rgba color we want to draw from transparent object
         vec4 transmit = vec4( 0.0 );        // TODO: Input color of pixel from full scene opaque object render
         color.rgb *= color.a;               // EnsurePremultiplied
 
+        // // Paper
+        // float tmp = ( color.a * 8.0 + 0.01 ) * ( - gl_FragCoord.z * 0.95 + 1.0 );
+        // float w = clamp( tmp * tmp * tmp * 1e3, 1e-2, 3e2 );
+
         // // Molstar
         // float w = color.a * clamp( pow( 1.0 - gl_FragCoord.z, 2.0 ), 0.01, 1.0 );
-        // gl_FragColor = vec4( color.a * w );
 
         // // WebGL 2
-        float w = weight( gl_FragCoord.z, color.a );
+        float w = clamp( pow( min( 1.0, color.a * 10.0 ) + 0.01, 3.0 ) * 1e8 * pow( 1.0 - gl_FragCoord.z * 0.9, 3.0 ), 1e-2, 3e3 );
+
+        // // Output
         gl_FragColor = vec4( color.a * w );
     }
 `;
@@ -122,25 +120,15 @@ const fragmentShaderCompositing = `
     uniform sampler2D tAccumulation;
     uniform sampler2D tRevealage;
 
-    float max4 (vec4 v) {
-        return max( max( max( v.x, v.y ), v.z ), v.w );
-    }
-
     void main() {
-        // // From Paper
-        // float reveal = texture2D( tRevealage, vUv ).r;
-        // /* Save the blending and color texture fetch cost */
-        // if (reveal == 1.0) { discard; }
-        // vec4 accum = texture2D( tAccumulation, vUv );
-        // /* Suppress overflow */
-        // // if ( isinf( max4( abs( accum ) ) ) ) { accum.rgb = vec3( accum.a ); }
-        // gl_FragColor = vec4( accum.rgb / max( accum.a, 0.00001 ), reveal );
+        float reveal = texture2D( tRevealage, vUv ).r;
+        if (reveal == 1.0) { discard; }
 
-        // // From molstar / webgl2
         vec4 accum = texture2D( tAccumulation, vUv );
         float a = 1.0 - accum.a;
-        accum.a = texture2D( tRevealage, vUv ).r;
-        gl_FragColor = vec4( a * accum.rgb / clamp( accum.a, 0.00000001, 50000.0 ), a );
+        accum.a = clamp( reveal, 0.00000001, 50000.0 );
+
+        gl_FragColor = vec4( a * accum.rgb / accum.a, a );
     }
 `;
 
@@ -249,16 +237,9 @@ class WboitRenderer {
 
         window.addEventListener( 'resize', onWindowResize, false );
 
-        // background color
-
-        const clearColorZero = new THREE.Color( 0, 0, 0 );
-        const clearColorRed = new THREE.Color( 1, 0, 0 );
-
         // render
 
         function render( scene, camera ) {
-
-            renderer.setClearColor( clearColorZero, 1.0 );
 
             scene.overrideMaterial = accumulationMaterial;
             renderer.setRenderTarget( accumulationTexture );
@@ -273,7 +254,6 @@ class WboitRenderer {
 
             scene.overrideMaterial = null;
             renderer.setRenderTarget( null );
-            renderer.clear();
             renderer.render( quadMesh, quadCamera );
 
         }
@@ -306,7 +286,7 @@ export { WboitRenderer };
 //      Author:         Morgan McGuire and Louis Bavoil
 //      Source(s):      http://jcgt.org/published/0002/02/09/
 //      Update(s):      http://casual-effects.blogspot.com/2015/03/implemented-weighted-blended-order.html
-//                   ***http://casual-effects.blogspot.com/2015/03/colored-blended-order-independent.html***
+//                      http://casual-effects.blogspot.com/2015/03/colored-blended-order-independent.html
 //                      http://casual-effects.com/research/McGuire2016Transparency/index.html
 //
 // Working WebGL 2 WBOIT Example:
