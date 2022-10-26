@@ -147,12 +147,28 @@ class WboitRenderer {
 
         // Materials
 
+        const blendMaterial = new THREE.ShaderMaterial({
+            vertexShader: vertexShaderQuad,
+            fragmentShader: fragmentShaderCopy,
+            uniforms: {
+                "tDiffuse": { value: null },
+            },
+            depthTest: false,
+            depthWrite: false,
+            blending: THREE.CustomBlending,
+            blendEquation: THREE.AddEquation,
+            blendSrc: THREE.SrcAlphaFactor,
+            blendDst: THREE.OneMinusSrcAlphaFactor,
+        });
+
         const copyMaterial = new THREE.ShaderMaterial({
             vertexShader: vertexShaderQuad,
             fragmentShader: fragmentShaderCopy,
             uniforms: {
                 "tDiffuse": { value: null },
             },
+            depthTest: false,
+            depthWrite: false,
             blending: THREE.CustomBlending,
             blendEquation: THREE.AddEquation,
             blendSrc: THREE.OneFactor,
@@ -236,6 +252,7 @@ class WboitRenderer {
         quadGeometry.setAttribute( 'position', new THREE.Float32BufferAttribute( [ - 1, 3, 0, - 1, - 1, 0, 3, - 1, 0 ], 3 ) );
         quadGeometry.setAttribute( 'uv', new THREE.Float32BufferAttribute( [ 0, 2, 0, 0, 2, 0 ], 2 ) );
 
+        const blendQuad = new THREE.Mesh( quadGeometry.clone(), blendMaterial );
         const copyQuad = new THREE.Mesh( quadGeometry.clone(), copyMaterial );
         const compositingQuad = new THREE.Mesh( quadGeometry.clone(), compositingMaterial );
 
@@ -244,6 +261,7 @@ class WboitRenderer {
         function onWindowResize() {
             if (self.enabled === true) {
                 baseTarget.setSize( window.innerWidth, window.innerHeight );
+                opaqueTarget.setSize( window.innerWidth, window.innerHeight );
                 accumulationTarget.setSize( window.innerWidth, window.innerHeight );
                 revealageTarget.setSize( window.innerWidth, window.innerHeight );
             }
@@ -274,9 +292,15 @@ class WboitRenderer {
         let currentClearAlpha, currentClearColor = new THREE.Color();
         let currentRenderTarget, currentOverrideMaterial;
 
-        function copyTarget( fromTarget, toTarget ) {
-            copyMaterial.uniforms[ 'tDiffuse' ].value = fromTarget.texture;
+        function blendTarget( fromTarget, toTarget ) {
             renderer.setRenderTarget( toTarget );
+            blendMaterial.uniforms[ 'tDiffuse' ].value = fromTarget.texture;
+            renderer.render( blendQuad, quadCamera );
+        }
+
+        function copyTarget( fromTarget, toTarget, blend = false ) {
+            renderer.setRenderTarget( toTarget );
+            copyMaterial.uniforms[ 'tDiffuse' ].value = fromTarget.texture;
             renderer.render( copyQuad, quadCamera );
         }
 
@@ -298,7 +322,7 @@ class WboitRenderer {
             renderer.clear();
             renderer.render( scene, camera );
             copyTarget( baseTarget, opaqueTarget );
-            copyTarget( opaqueTarget, writeBuffer );
+            blendTarget( baseTarget, writeBuffer );
 
             // // Modulate Opaque Pixels
             // //
