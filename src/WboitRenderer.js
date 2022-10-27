@@ -13,18 +13,19 @@
 //  Types of Order Independent Transparency
 //      Depth Peeling, 2001 (many passes, slowest)
 //      Dual Depth Peeling, 2008 (many passes)
-//      Weighted, Blended, 2013 (fastest, approximate)
+//      Weighted, Blended, 2013 (fastest, approximate, mobile friendly)
 //
 //  THREE Issue:
 //      https://github.com/mrdoob/three.js/issues/9977
 //
-//  Implemented WebGL
-//      https://github.com/tsherif/webgl2examples/blob/master/oit.html
+//  More:
+//      https://stackoverflow.com/questions/38892933/order-independent-transparency-and-mixed-opaque-and-translucent-object-hierarchi
+//      https://github.com/ingun37/threejs-depth-peeling-demo
 //
 /////////////////////////////////////////////////////////////////////////////////////
 //
 //  TODO:
-//      - Support Built-In Shaders
+//      - Support Built-In Shaders (look at that closed demo by some guy)
 //      - Better demo
 //      - Develop as Pass? Need to enable/disable opaque/transparent objects
 //      - Modulate OpaqueTexture?
@@ -367,7 +368,7 @@ class WboitRenderer {
             changeVisible( scene, false, true );
 
             // Render Transparent Objects, Accumulation Pass
-            accumulationMaterial.uniforms[ 'tOpaque' ].value = opaqueTarget.texture;
+            // accumulationMaterial.uniforms[ 'tOpaque' ].value = opaqueTarget.texture;
             scene.overrideMaterial = accumulationMaterial;
             renderer.setRenderTarget( baseTarget );
             renderer.setClearColor( clearColorZero, 0.0 );
@@ -376,7 +377,7 @@ class WboitRenderer {
             copyTarget( baseTarget, accumulationTarget );
 
             // Render Transparent Objects, Revealage Pass
-            revealageMaterial.uniforms[ 'tOpaque' ].value = opaqueTarget.texture;
+            // revealageMaterial.uniforms[ 'tOpaque' ].value = opaqueTarget.texture;
             scene.overrideMaterial = revealageMaterial;
             renderer.setRenderTarget( baseTarget );
             renderer.setClearColor( clearColorOne, 1.0 );
