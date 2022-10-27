@@ -22,10 +22,17 @@
 //      https://github.com/tsherif/webgl2examples/blob/master/oit.html
 //
 /////////////////////////////////////////////////////////////////////////////////////
+//
+//  TODO:
+//      - Support Built-In Shaders
+//      - Better demo
+//      - Develop as Pass? Need to enable/disable opaque/transparent objects
+//      - Modulate OpaqueTexture?
+//
 
 import * as THREE from 'three';
 
-///// Shaders
+///// Vertex Shaders
 
 const vertexShaderAccumulation = `
     precision highp float;
@@ -51,6 +58,8 @@ const vertexShaderQuad = `
     }
 `;
 
+///// Fragment Shaders
+
 const fragmentShaderCopy = `
     varying vec2 vUv;
 
@@ -62,24 +71,34 @@ const fragmentShaderCopy = `
 `;
 
 const fragmentShaderModulate = `
+    precision highp float;
+    precision highp int;
+
     varying vec4 vColor;
     varying vec2 vUv;
 
     uniform sampler2D tOpaque;
 
     void main() {
-        vec4 color = vColor;                            // Final lit rgba color of transparent object to draw
-        vec4 transmit = texture2D( tOpaque, vUv );      // Current pixel color from opaque render
+        // Final lit rgba color of transparent object to draw
+        vec4 color = vColor;
 
+        // Current pixel color from opaque render
+        vec4 transmit = texture2D( tOpaque, vUv );
+
+        // Output
         gl_FragColor = vec4( color.a * ( vec3( 1.0 ) - transmit.rgb ), transmit.a );
     }
-;`
+`;
 
 const fragmentShaderAccumulation = `
     precision highp float;
     precision highp int;
 
     varying vec4 vColor;
+    varying vec2 vUv;
+
+    uniform sampler2D tOpaque;
 
     // McGuire, 03/2015
     float weight(float z, float a) {
@@ -87,17 +106,16 @@ const fragmentShaderAccumulation = `
     }
 
     void main() {
-        vec4 color = vColor;                            // Final lit rgba color of transparent object to draw
-        vec4 transmit = vec4( 0.0 );                    // TODO: Pixel from opaque object render
-        color.rgb *= color.a;                           // EnsurePremultiplied
+        // Final lit rgba color of transparent object to draw, ensure premultiplied
+        vec4 color = vColor;
+        color.rgb *= color.a;
 
-        /* ---------- */
-        /* TODO: Modulate, i.e. overwrite existing opaque object render */
-        // gl_FragColor(opaqueTexture) = vec4( color.a * ( vec3( 1.0 ) - transmit.rgb ), transmit.a );
+        // // Modulate based on existing opaque render
+        // vec4 transmit = texture2D( tOpaque, vUv );
         // color.a *= 1.0 - ( ( transmit.r + transmit.g + transmit.b ) * ( 1.0 / 3.0 ) );
-        /* ---------- */
 
-        gl_FragColor = vec4( color.rgb, color.a ) * weight( gl_FragCoord.z, color.a );
+        vec4 accum = vec4( color.rgb, color.a ) * weight( gl_FragCoord.z, color.a );
+        gl_FragColor = clamp( accum, 0.001, 0.999 );
     }
 `;
 
@@ -108,16 +126,18 @@ const fragmentShaderRevealage = `
     varying vec4 vColor;
     varying vec2 vUv;
 
+    uniform sampler2D tOpaque;
+
     void main() {
-        vec4 color = vColor;                            // Final lit rgba color of transparent object to draw
-        vec4 transmit = vec4( 0.0 );                    // TODO: Pixel from opaque object render
+        // Final lit rgba color of transparent object to draw
+        vec4 color = vColor;
 
-        /* ---------- */
-        /* TODO: Modulate, i.e. overwrite existing opaque object render */
+        // // Modulate based on existing opaque render
+        // vec4 transmit = texture2D( tOpaque, vUv );
         // color.a *= 1.0 - ( ( transmit.r + transmit.g + transmit.b ) * ( 1.0 / 3.0 ) );
-        /* ---------- */
 
-        gl_FragColor = vec4( color.a );
+        // Output
+        gl_FragColor = clamp( vec4( color.a ), 0.001, 0.999 );
     }
 `;
 
@@ -130,7 +150,7 @@ const fragmentShaderCompositing = `
     void main() {
         vec4 accum = texture2D( tAccumulation, vUv );
         float reveal = texture2D( tRevealage, vUv ).r;
-        gl_FragColor = vec4( accum.rgb / clamp( accum.a, 1e-4, 5e4 ), reveal );
+        gl_FragColor = clamp( vec4( accum.rgb / clamp( accum.a, 1e-4, 5e4 ), reveal ), 0.001, 0.999 );
     }
 `;
 
@@ -176,12 +196,25 @@ class WboitRenderer {
         });
 
         const modulateMaterial = new THREE.ShaderMaterial({
-
+            vertexShader: vertexShaderAccumulation,
+            fragmentShader: fragmentShaderModulate,
+            uniforms: {
+                "tOpaque": { value: null },
+            },
+            depthTest: false,
+            depthWrite: false,
+            blending: THREE.CustomBlending,
+            blendEquation: THREE.AddEquation,
+            blendSrc: THREE.SrcAlphaFactor,
+            blendDst: THREE.OneMinusSrcAlphaFactor,
         });
 
         const accumulationMaterial = new THREE.ShaderMaterial({
             vertexShader: vertexShaderAccumulation,
             fragmentShader: fragmentShaderAccumulation,
+            uniforms: {
+                "tOpaque": { value: null },
+            },
             side: THREE.DoubleSide,
             depthWrite: false,
             depthTest: true,
@@ -195,6 +228,9 @@ class WboitRenderer {
         const revealageMaterial = new THREE.ShaderMaterial({
             vertexShader: vertexShaderAccumulation,
             fragmentShader: fragmentShaderRevealage,
+            uniforms: {
+                "tOpaque": { value: null },
+            },
             side: THREE.DoubleSide,
             depthWrite: false,
             depthTest: true,
@@ -235,6 +271,11 @@ class WboitRenderer {
             type: THREE.FloatType, format: THREE.RGBAFormat, stencilBuffer: false, depthBuffer: false,
         });
 
+        const modulateTarget = new THREE.WebGLRenderTarget( window.innerWidth, window.innerHeight, {
+            minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter,
+            type: THREE.FloatType, format: THREE.RGBAFormat, stencilBuffer: false, depthBuffer: false,
+        });
+
         const accumulationTarget = new THREE.WebGLRenderTarget( window.innerWidth, window.innerHeight, {
             minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter,
             type: THREE.FloatType, format: THREE.RGBAFormat, stencilBuffer: false, depthBuffer: false,
@@ -262,6 +303,7 @@ class WboitRenderer {
             if (self.enabled === true) {
                 baseTarget.setSize( window.innerWidth, window.innerHeight );
                 opaqueTarget.setSize( window.innerWidth, window.innerHeight );
+                modulateTarget.setSize( window.innerWidth, window.innerHeight );
                 accumulationTarget.setSize( window.innerWidth, window.innerHeight );
                 revealageTarget.setSize( window.innerWidth, window.innerHeight );
             }
@@ -322,15 +364,10 @@ class WboitRenderer {
             renderer.clear();
             renderer.render( scene, camera );
             copyTarget( baseTarget, opaqueTarget );
-            blendTarget( baseTarget, writeBuffer );
-
-            // // Modulate Opaque Pixels
-            // //
-            // // TODO
-            // //
+            changeVisible( scene, false, true );
 
             // Render Transparent Objects, Accumulation Pass
-            changeVisible( scene, false, true );
+            accumulationMaterial.uniforms[ 'tOpaque' ].value = opaqueTarget.texture;
             scene.overrideMaterial = accumulationMaterial;
             renderer.setRenderTarget( baseTarget );
             renderer.setClearColor( clearColorZero, 0.0 );
@@ -339,12 +376,23 @@ class WboitRenderer {
             copyTarget( baseTarget, accumulationTarget );
 
             // Render Transparent Objects, Revealage Pass
+            revealageMaterial.uniforms[ 'tOpaque' ].value = opaqueTarget.texture;
             scene.overrideMaterial = revealageMaterial;
             renderer.setRenderTarget( baseTarget );
             renderer.setClearColor( clearColorOne, 1.0 );
             renderer.clearColor();
             renderer.render( scene, camera );
             copyTarget( baseTarget, revealageTarget );
+
+            // // Modulate / Blend Opaque Pixels
+            // copyTarget( opaqueTarget, modulateTarget );
+            // modulateMaterial.uniforms[ 'tOpaque' ].value = opaqueTarget.texture;
+            // scene.overrideMaterial = modulateMaterial;
+            // renderer.setRenderTarget( modulateTarget );
+            // renderer.render( scene, camera );
+
+            // Blend Opaque Texture with WriteBuffer
+            blendTarget( opaqueTarget, writeBuffer );
 
             // Composite Transparent Objects
             compositingMaterial.uniforms[ 'tAccumulation' ].value = accumulationTarget.texture;

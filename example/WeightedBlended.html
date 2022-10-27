@@ -126,6 +126,26 @@
 
                 scene.add( new THREE.Mesh( opaqueGeometry, opaqueMaterial ) );
 
+                // torus knots
+
+                const torusKnotGeometry = new THREE.TorusKnotGeometry( 1.5, 0.4, 100, 16 );
+
+                console.log(torusKnotGeometry);
+
+                const torusPoints = torusKnotGeometry.attributes.position.count;
+
+                const torusColors = new Float32Array( torusPoints * 4 /* stride */, 4 );
+
+                for ( let i = 0; i < torusPoints; i ++ ) {
+
+                    torusColors.set( [ 1, 0, 1.0, 0.50 ], i * 4 );
+
+                }
+
+                torusKnotGeometry.setAttribute( 'color', new THREE.BufferAttribute( torusColors, 4 ) );
+
+                scene.add( new THREE.Mesh( torusKnotGeometry, transparentMaterial ) );
+
                 // // setup objects
 
                 // const numItems = 10;
