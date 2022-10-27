@@ -38,14 +38,17 @@
             import { WboitRenderer } from '../src/WboitRenderer.js';
 
 			let gl;
-            let scene, scene1, scene2;
-            let camera, controls, renderer;
+            let scene, camera, controls, renderer;
             let texturePass, wboitPass;
 
             let mouse = new THREE.Vector2();
             let pixelBuffer = new Uint8Array( 4 );
 
-            const sceneTypes = [ 'Demo 1', 'Demo 2' ];
+            let scene1 = new THREE.Scene();
+            let scene2 = new THREE.Scene();
+            let scene3 = new THREE.Scene();
+
+            const sceneTypes = [ 'Demo 1', 'Demo 2', 'Demo 3' ];
 
             const params = {
 				scene: 'Demo 1',
@@ -99,10 +102,6 @@
 
                 // scene 1
 
-                // colored squares
-
-                scene1 = new THREE.Scene();
-
                 const coloredVertices = new Float32Array( [
                     0, 0, - 1, - 2, 0, - 1, - 2, - 2, - 1, 0, 0, - 1, - 2, - 2, - 1, 0, - 2, - 1,   // back
                     1, 1, 0, - 1, 1, 0, - 1, - 1, 0, 1, 1, 0, - 1, - 1, 0, 1, - 1, 0,               // center
@@ -113,14 +112,12 @@
                 coloredGeometry.setAttribute( 'position', new THREE.BufferAttribute( coloredVertices, 3 ) );
 
                 const squareColors = new Float32Array( 6 /* points */ * 3 /* faces */ * 4 /* stride */, 4 );
-                for ( let i = 0; i < 6; i ++ ) squareColors.set( [ 0.3, 0, 0, 0.50 ], i * 4 );
-                for ( let i = 6; i < 12; i ++ ) squareColors.set( [ 0.6, 0, 0, 0.50 ], i * 4 );
-                for ( let i = 12; i < 18; i ++ ) squareColors.set( [ 1.0, 0, 0, 0.50 ], i * 4 );
+                for ( let i = 0; i < 6; i ++ ) squareColors.set( [ 1.0, 0, 0, 0.50 ], i * 4 );
+                for ( let i = 6; i < 12; i ++ ) squareColors.set( [ 1.0, 1.0, 0, 0.50 ], i * 4 );
+                for ( let i = 12; i < 18; i ++ ) squareColors.set( [ 0, 0, 1.0, 0.50 ], i * 4 );
                 coloredGeometry.setAttribute( 'color', new THREE.BufferAttribute( squareColors, 4 ) );
 
                 scene1.add( new THREE.Mesh( coloredGeometry, transparentMaterial ) );
-
-                // opaque square
 
                 const opaqueVertices = new Float32Array( [
                       0.5,   1.5, 0.5,  // Top Right
@@ -136,36 +133,34 @@
 
                 scene1.add( new THREE.Mesh( opaqueGeometry, opaqueMaterial ) );
 
-                // // torus knot
-
-                // const torusKnotGeometry = new THREE.TorusKnotGeometry( 1.5, 0.4, 100, 16 );
-                // const torusPoints = torusKnotGeometry.attributes.position.count;
-                // const torusColors = new Float32Array( torusPoints * 4 /* stride */, 4 );
-
-                // const redColor = new THREE.Color( 1.0, 0.0, 0.0 );
-                // const greenColor = new THREE.Color( 0.0, 1.0, 0.0 );
-                // const blueColor = new THREE.Color( 0.0, 0.0, 1.0 );
-
-                // for ( let i = 0; i < torusPoints; i ++ ) {
-
-                //     let x = torusKnotGeometry.attributes.uv.array[ ( i * 2 ) + 0 ];
-                //     let y = torusKnotGeometry.attributes.uv.array[ ( i * 2 ) + 1 ];
-
-                //     let r = y;
-                //     let g = 1.0 - y;
-                //     let b = x;
-                //     r *= ( 1.0 - b );
-                //     torusColors.set( [ r, g, b, 0.50 ], i * 4 );
-
-                // }
-
-                // torusKnotGeometry.setAttribute( 'color', new THREE.Float32BufferAttribute( torusColors, 4 ) );
-
-                // scene1.add( new THREE.Mesh( torusKnotGeometry, transparentMaterial ) );
-
                 // scene 2
 
-                scene2 = new THREE.Scene();
+                const torusKnotGeometry = new THREE.TorusKnotGeometry( 1.5, 0.4, 100, 16 );
+                const torusPoints = torusKnotGeometry.attributes.position.count;
+                const torusColors = new Float32Array( torusPoints * 4 /* stride */, 4 );
+
+                const redColor = new THREE.Color( 1.0, 0.0, 0.0 );
+                const greenColor = new THREE.Color( 0.0, 1.0, 0.0 );
+                const blueColor = new THREE.Color( 0.0, 0.0, 1.0 );
+
+                for ( let i = 0; i < torusPoints; i ++ ) {
+
+                    let x = torusKnotGeometry.attributes.uv.array[ ( i * 2 ) + 0 ];
+                    let y = torusKnotGeometry.attributes.uv.array[ ( i * 2 ) + 1 ];
+
+                    let r = y;
+                    let g = 1.0 - y;
+                    let b = x;
+                    r *= ( 1.0 - b );
+                    torusColors.set( [ r, g, b, 0.50 ], i * 4 );
+
+                }
+
+                torusKnotGeometry.setAttribute( 'color', new THREE.Float32BufferAttribute( torusColors, 4 ) );
+
+                scene2.add( new THREE.Mesh( torusKnotGeometry, transparentMaterial ) );
+
+                // scene 3
 
                 const numItems = 10;
                 const boxGeometry = new THREE.BoxGeometry( 2, 2, 2, 1, 1, 1 );
@@ -188,7 +183,7 @@
                     mesh.scale.x = 3;
                     mesh.scale.z = 0.5;
 
-                    scene2.add( mesh );
+                    scene3.add( mesh );
 
                 }
 
@@ -196,7 +191,7 @@
 
                     const m = new THREE.Mesh( boxGeometry, opaqueMaterial );
 
-                    scene2.add(m);
+                    scene3.add(m);
 
                     const angle = i / 2 * Math.PI;
                     m.position.set( Math.sin( angle ), 0, Math.cos(angle) ).multiplyScalar( 2 );
@@ -243,6 +238,11 @@
 
                     case ( 'Demo 2'):
                         scene = scene2;
+                        break;
+
+                    case ( 'Demo 3'):
+                        scene = scene3;
+                        break;
 
                 }
 

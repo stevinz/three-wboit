@@ -82,9 +82,11 @@ const fragmentShaderAccumulation = `
 
         // McGuire, 03/2015
         float w = clamp( pow( ( color.a * 8.0 + 0.01 ) * ( - gl_FragCoord.z * 0.95 + 1.0 ), 3.0 ) * 1e3, 1e-2, 3e2 );
-        vec4 accum = vec4( color.rgb, color.a ) * w;
+        gl_FragColor = vec4( color.rgb, color.a ) * w;
 
-        gl_FragColor = clamp( accum, 1e-2, 1.0 - 1e-2 );
+        // // TSherif, 10/2018
+        // float w = clamp( pow( min( 1.0, color.a * 10.0 ) + 0.01, 3.0 ) * 1e8 * pow( 1.0 - gl_FragCoord.z * 0.9, 3.0 ), 1e-2, 3e3 );
+        // gl_FragColor = vec4( color.rgb * w, color.a );
     }
 `;
 
@@ -97,11 +99,12 @@ const fragmentShaderRevealage = `
     void main() {
         vec4 color = vColor;
 
-        // McGuire, 03/2015
-        float w = clamp( pow( ( color.a * 8.0 + 0.01 ) * ( - gl_FragCoord.z * 0.95 + 1.0 ), 3.0 ) * 1e3, 1e-2, 3e2 );
-        vec4 reveal = vec4( color.a ) * 0.5;
+        // // McGuire, 03/2015
+        gl_FragColor = vec4( color.a );
 
-        gl_FragColor = clamp( reveal, 1e-2, 1.0 - 1e-2 );
+        // // TSherif, 10/2018
+        // float w = clamp( pow( min( 1.0, color.a * 10.0 ) + 0.01, 3.0 ) * 1e8 * pow( 1.0 - gl_FragCoord.z * 0.9, 3.0 ), 1e-2, 3e3 );
+        // gl_FragColor = vec4( color.a * w );
     }
 `;
 
@@ -112,10 +115,17 @@ const fragmentShaderCompositing = `
     uniform sampler2D tRevealage;
 
     void main() {
+        // // McGuire, 03/2015
         vec4 accum = texture2D( tAccumulation, vUv );
         float reveal = texture2D( tRevealage, vUv ).r;
+        vec4 composite = vec4( accum.rgb / clamp( accum.a, 0.0001, 50000.0 ), reveal );
+        gl_FragColor = clamp( composite, 0.001, 0.999 );
 
-        gl_FragColor = clamp( vec4( accum.rgb / clamp( accum.a, 1e-4, 5e4 ), reveal ), 0.001, 0.999 );
+        // // TSherif, 10/2018
+        // vec4 accum = texture2D( tAccumulation, vUv );
+        // float a = 1.0 - accum.a;
+        // accum.a = texture2D( tRevealage, vUv ).r;
+        // gl_FragColor = vec4( a * accum.rgb / clamp( accum.a, 0.001, 50000.0 ), a );
     }
 `;
 
@@ -130,7 +140,7 @@ class WboitRenderer {
 
         const self = this;
 
-        // Materials
+        // Materials, Copy
 
         const blendMaterial = new THREE.ShaderMaterial( {
             vertexShader: vertexShaderQuad,
@@ -160,20 +170,30 @@ class WboitRenderer {
             blendDst: THREE.ZeroFactor,
         } );
 
+        // Materials, Wboit
+
         const accumulationMaterial = new THREE.ShaderMaterial( {
             vertexShader: vertexShaderAccumulation,
             fragmentShader: fragmentShaderAccumulation,
             uniforms: {
                 "tOpaque": { value: null },
             },
-            side: THREE.DoubleSide,
+            side: THREE.FrontSide,
             depthWrite: false,
             depthTest: true,
             transparent: true,
             blending: THREE.CustomBlending,
             blendEquation: THREE.AddEquation,
+            // // McGuire, 03/2015
             blendSrc: THREE.OneFactor,
             blendDst: THREE.OneFactor,
+
+            // // TSherif, 10/2018
+            // blendSrc: THREE.OneFactor,
+            // blendDst: THREE.OneFactor,
+            // blendEquationAlpha: THREE.AddEquation,
+            // blendSrcAlpha: THREE.ZeroFactor,
+            // blendDstAlpha: THREE.OneMinusSrcAlphaFactor,
         } );
 
         const revealageMaterial = new THREE.ShaderMaterial( {
@@ -182,14 +202,20 @@ class WboitRenderer {
             uniforms: {
                 "tOpaque": { value: null },
             },
-            side: THREE.DoubleSide,
+            side: THREE.FrontSide,
             depthWrite: false,
             depthTest: true,
             transparent: true,
             blending: THREE.CustomBlending,
             blendEquation: THREE.AddEquation,
+            // // McGuire, 03/2015
             blendSrc: THREE.ZeroFactor,
             blendDst: THREE.OneMinusSrcAlphaFactor,
+
+            // // TSherif, 10/2018
+            // blendSrc: THREE.OneFactor,
+            // blendDst: THREE.OneFactor,
+            // blendEquationAlpha: THREE.AddEquation,
         } );
 
         const compositingMaterial = new THREE.ShaderMaterial( {
@@ -202,8 +228,14 @@ class WboitRenderer {
             transparent: true,
             blending: THREE.CustomBlending,
             blendEquation: THREE.AddEquation,
+
+            // // McGuire, 03/2015
             blendSrc: THREE.OneMinusSrcAlphaFactor,
             blendDst: THREE.SrcAlphaFactor,
+
+            // TSherif, 10/2018
+            // blendSrc: THREE.OneFactor,
+            // blendDst: THREE.OneMinusSrcAlphaFactor,
         } );
 
         // Render Targets
@@ -315,7 +347,10 @@ class WboitRenderer {
             // Render Transparent Objects, Accumulation Pass
             scene.overrideMaterial = accumulationMaterial;
             renderer.setRenderTarget( baseTarget );
+            // // McGuire, 03/2015
             renderer.setClearColor( clearColorZero, 0.0 );
+            // // TSherif, 10/2018
+            // renderer.setClearColor( clearColorZero, 1.0 );
             renderer.clearColor();
             renderer.render( scene, camera );
             copyTarget( baseTarget, accumulationTarget );
@@ -323,7 +358,10 @@ class WboitRenderer {
             // Render Transparent Objects, Revealage Pass
             scene.overrideMaterial = revealageMaterial;
             renderer.setRenderTarget( baseTarget );
+            // // McGuire, 03/2015
             renderer.setClearColor( clearColorOne, 1.0 );
+            // // TSherif, 10/2018
+            // renderer.setClearColor( clearColorZero, 1.0 );
             renderer.clearColor();
             renderer.render( scene, camera );
             copyTarget( baseTarget, revealageTarget );
@@ -379,8 +417,8 @@ export { WboitRenderer };
 //                      http://casual-effects.blogspot.com/2015/03/colored-blended-order-independent.html
 //                      http://casual-effects.com/research/McGuire2016Transparency/index.html
 //
-// Working WebGL 2 WBOIT Example:
-//      Description:    WebGL 2 Example: Order-independent Transparency
+// Working WebGL 2 Example:
+//      Description:    WebGL 2 Example: Weighted, Blended Order-independent Transparency
 //      Author:         Tarek Sherif <@tsherif>
 //      License:        Distributed under the MIT License
 //      Source:         https://github.com/tsherif/webgl2examples/blob/master/oit.html
@@ -391,7 +429,7 @@ export { WboitRenderer };
 //      Source:         https://github.com/mrdoob/three.js/pull/15490
 //                      https://raw.githack.com/pailhead/three.js/depth-peel-stencil/examples/webgl_materials_depthpeel.html
 //
-//      Description:    WBOIT Example
+//      Description:    Weighted, Blended Example
 //      Author:         Alexander Rose <@arose>
 //      Source(s):      https://github.com/mrdoob/three.js/issues/4814
 //                      https://github.com/arose/three.js/tree/oit
@@ -409,6 +447,8 @@ export { WboitRenderer };
 //
 // Some Portions
 //      Copyright (c) 2010-2022 mrdoob and three.js authors
+//      Copyright (c) 2014 Alexander Rose
+//      Copyright (c) 2017 Tarek Sherif
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
