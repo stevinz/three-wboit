@@ -11,8 +11,6 @@
 		<div id="info">
             <a href="http://threejs.org" target="_blank">three.js</a> - Weighted Blended Order-Independent Transparency (<a href="http://jcgt.org/published/0002/02/09/">paper</a>, <a href="http://casual-effects.blogspot.de/2014/03/weighted-blended-order-independent.html">blog</a>)
             <br /><span id="color"></span><br />
-            <input type="radio" name="blend" id="wboit" checked />wboit &nbsp;&nbsp;
-            <input type="radio" name="blend" id="normal" />normal
         </div>
 
 		<!-- Import maps polyfill -->
@@ -40,17 +38,25 @@
             import { WboitRenderer } from '../src/WboitRenderer.js';
 
 			let gl;
-            let camera, controls, scene, renderer;
-
+            let scene, scene1, scene2;
+            let camera, controls, renderer;
             let texturePass, wboitPass;
 
             let mouse = new THREE.Vector2();
             let pixelBuffer = new Uint8Array( 4 );
 
-            let btnWboit = document.getElementById( 'wboit' );
-            let btnNormal = document.getElementById( 'normal' );
+            const sceneTypes = [ 'Demo 1', 'Demo 2' ];
+
+            const params = {
+				scene: 'Demo 1',
+                enabled: true,
+				background: true,
+                doubleSide: true,
+			};
 
             init();
+            onWindowResize();
+            updateScene();
             animate();
 
             function init() {
@@ -71,24 +77,7 @@
                 controls = new OrbitControls( camera, renderer.domElement );
                 controls.dynamicDampingFactor = 0.3;
 
-                scene = new THREE.Scene();
-
-                // colored squares
-
-                const coloredVertices = new Float32Array( [
-                    1, 1, 0, - 1, 1, 0, - 1, - 1, 0, 1, 1, 0, - 1, - 1, 0, 1, - 1, 0,               // yellow
-                    0, 0, - 1, - 2, 0, - 1, - 2, - 2, - 1, 0, 0, - 1, - 2, - 2, - 1, 0, - 2, - 1,   // red
-                    2, 2, 1, 0, 2, 1, 0, 0, 1, 2, 2, 1, 0, 0, 1, 2, 0, 1                            // blue
-                ] );
-
-                const coloredGeometry = new THREE.BufferGeometry();
-                coloredGeometry.setAttribute( 'position', new THREE.BufferAttribute( coloredVertices, 3 ) );
-
-                const colors = new Float32Array( 6 /* points */ * 3 /* faces */ * 4 /* stride */, 4 );
-                for ( let i = 0; i < 6; i ++ ) { colors.set( [ 1, 1, 0, 0.50 ], i * 4 ); }          // yellow
-                for ( let i = 6; i < 12; i ++ ) { colors.set( [ 1, 0, 0, 0.75 ], i * 4 ); }         // red
-                for ( let i = 12; i < 18; i ++ ) { colors.set( [ 0, 0, 1, 0.75 ], i * 4 ); }        // blue
-                coloredGeometry.setAttribute( 'color', new THREE.BufferAttribute( colors, 4 ) );
+                // materials
 
                 const transparentMaterial = new THREE.MeshBasicMaterial( {
                     side: THREE.DoubleSide,
@@ -99,9 +88,39 @@
                     depthWrite: true,
                 } );
 
-                scene.add( new THREE.Mesh( coloredGeometry, transparentMaterial ) );
+                const opaqueMaterial = new THREE.MeshBasicMaterial( {
+                    side: THREE.DoubleSide,
+                    transparent: false,
+                    color: new THREE.Color( 0.85, 0.85, 0.85 ),
+                    opacity: 1.0,
+                    depthTest: true,
+                    depthWrite: true,
+                } );
 
-                // opaque squares
+                // scene 1
+
+                // colored squares
+
+                scene1 = new THREE.Scene();
+
+                const coloredVertices = new Float32Array( [
+                    0, 0, - 1, - 2, 0, - 1, - 2, - 2, - 1, 0, 0, - 1, - 2, - 2, - 1, 0, - 2, - 1,   // back
+                    1, 1, 0, - 1, 1, 0, - 1, - 1, 0, 1, 1, 0, - 1, - 1, 0, 1, - 1, 0,               // center
+                    2, 2, 1, 0, 2, 1, 0, 0, 1, 2, 2, 1, 0, 0, 1, 2, 0, 1                            // front
+                ] );
+
+                const coloredGeometry = new THREE.BufferGeometry();
+                coloredGeometry.setAttribute( 'position', new THREE.BufferAttribute( coloredVertices, 3 ) );
+
+                const squareColors = new Float32Array( 6 /* points */ * 3 /* faces */ * 4 /* stride */, 4 );
+                for ( let i = 0; i < 6; i ++ ) squareColors.set( [ 0.3, 0, 0, 0.50 ], i * 4 );
+                for ( let i = 6; i < 12; i ++ ) squareColors.set( [ 0.6, 0, 0, 0.50 ], i * 4 );
+                for ( let i = 12; i < 18; i ++ ) squareColors.set( [ 1.0, 0, 0, 0.50 ], i * 4 );
+                coloredGeometry.setAttribute( 'color', new THREE.BufferAttribute( squareColors, 4 ) );
+
+                scene1.add( new THREE.Mesh( coloredGeometry, transparentMaterial ) );
+
+                // opaque square
 
                 const opaqueVertices = new Float32Array( [
                       0.5,   1.5, 0.5,  // Top Right
@@ -113,79 +132,78 @@
                 ] );
 
                 const opaqueGeometry = new THREE.BufferGeometry();
-                opaqueGeometry.setAttribute( 'position', new THREE.BufferAttribute( opaqueVertices, 3 ) );
+                opaqueGeometry.setAttribute( 'position', new THREE.Float32BufferAttribute( opaqueVertices, 3 ) );
 
-                const opaqueMaterial = new THREE.MeshBasicMaterial( {
-                    side: THREE.DoubleSide,
-                    transparent: false,
-                    color: new THREE.Color( 0.0, 1.0, 0.0 ),
-                    opacity: 1.0,
-                    depthTest: true,
-                    depthWrite: true,
-                } );
+                scene1.add( new THREE.Mesh( opaqueGeometry, opaqueMaterial ) );
 
-                scene.add( new THREE.Mesh( opaqueGeometry, opaqueMaterial ) );
+                // // torus knot
 
-                // torus knots
+                // const torusKnotGeometry = new THREE.TorusKnotGeometry( 1.5, 0.4, 100, 16 );
+                // const torusPoints = torusKnotGeometry.attributes.position.count;
+                // const torusColors = new Float32Array( torusPoints * 4 /* stride */, 4 );
 
-                const torusKnotGeometry = new THREE.TorusKnotGeometry( 1.5, 0.4, 100, 16 );
-                const torusPoints = torusKnotGeometry.attributes.position.count;
-                const torusColors = new Float32Array( torusPoints * 4 /* stride */, 4 );
+                // const redColor = new THREE.Color( 1.0, 0.0, 0.0 );
+                // const greenColor = new THREE.Color( 0.0, 1.0, 0.0 );
+                // const blueColor = new THREE.Color( 0.0, 0.0, 1.0 );
 
-                for ( let i = 0; i < torusPoints; i ++ ) { torusColors.set( [ 1, 0, 1.0, 0.50 ], i * 4 ); }
-                torusKnotGeometry.setAttribute( 'color', new THREE.BufferAttribute( torusColors, 4 ) );
+                // for ( let i = 0; i < torusPoints; i ++ ) {
 
-                scene.add( new THREE.Mesh( torusKnotGeometry, transparentMaterial ) );
+                //     let x = torusKnotGeometry.attributes.uv.array[ ( i * 2 ) + 0 ];
+                //     let y = torusKnotGeometry.attributes.uv.array[ ( i * 2 ) + 1 ];
 
-                // // setup objects
+                //     let r = y;
+                //     let g = 1.0 - y;
+                //     let b = x;
+                //     r *= ( 1.0 - b );
+                //     torusColors.set( [ r, g, b, 0.50 ], i * 4 );
 
-                // const numItems = 10;
-                // const boxGeometry = new THREE.BoxGeometry( 2, 2, 2, 1, 1, 1 );
-
-				// for ( let i = 0 ; i < numItems ; i ++ ) {
-
-                //     const mesh = new THREE.Mesh(
-                //         boxGeometry,
-                //         new THREE.MeshPhongMaterial({ side: THREE.DoubleSide, transparent: true, opacity: 0.5 })
-                //         // new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, transparent: true, opacity: 0.5 })
-                //     );
-
-                //     mesh.renderOrder = 1;
-
-                //     // transparentObjects.push(mesh);
-                //     // mesh.material.onBeforeCompile = colorOnBeforeCompile;
-
-                //     mesh.material.color = new THREE.Color().setHSL( (i % 2 == 0 ? numItems - i : i ) / numItems, 1, 0.5 );
-
-                //     mesh.rotation.y = i * Math.PI / 2;
-                //     mesh.scale.y = 2;
-                //     mesh.position.y = ( i - numItems / 2 ) * 2.5;
-                //     mesh.scale.x = 20;
-
-                //     scene.add( mesh );
                 // }
 
-                // // const opaque = new THREE.MeshBasicMaterial({color:'white'})
-                // const opaque = new THREE.MeshPhongMaterial({color:'white'})
-                // opaque.onBeforeCompile = colorOnBeforeCompile
+                // torusKnotGeometry.setAttribute( 'color', new THREE.Float32BufferAttribute( torusColors, 4 ) );
 
-                // for( let i = 0 ; i < 4 ; i ++ ){
-                // const m = new THREE.Mesh(boxGeometry, opaque)
-                // opaqueObjects.push(m)
-                // scene.add(m)
-                // const angle = i / 2 * Math.PI
-                // m.position.set(Math.sin(angle),0,Math.cos(angle)).multiplyScalar(10)
-                // m.scale.multiplyScalar(1.5)
-                // m.scale.y = 3.5
-                // }
+                // scene1.add( new THREE.Mesh( torusKnotGeometry, transparentMaterial ) );
 
-                // // lights
+                // scene 2
 
-                // scene.add( new THREE.AmbientLight( 0xffffff, .5 ) );
+                scene2 = new THREE.Scene();
 
-                // const light = new THREE.PointLight( 0xffffff, 0.8 );
-                // light.position.set( 20, 20, 20 );
-                // scene.add( light );
+                const numItems = 10;
+                const boxGeometry = new THREE.BoxGeometry( 2, 2, 2, 1, 1, 1 );
+
+				for ( let i = 0; i < numItems; i ++ ) {
+
+                    const coloredBoxGeometry = boxGeometry.clone();
+
+                    const boxPoints = coloredBoxGeometry.attributes.position.count;
+                    const boxColors = new Float32Array( boxPoints * 4 /* stride */, 4 );
+                    const clr = new THREE.Color().setHSL( ( i % 2 == 0 ? numItems - i : i ) / numItems, 1, 0.5 );
+                    for ( let j = 0; j < boxPoints; j ++ ) boxColors.set( [ clr.r, clr.g, clr.b, 0.50 ], j * 4 );
+                    coloredBoxGeometry.setAttribute( 'color', new THREE.Float32BufferAttribute( boxColors, 4 ) );
+
+                    const mesh = new THREE.Mesh( coloredBoxGeometry, transparentMaterial );
+
+                    mesh.rotation.y = i * Math.PI / 2;
+                    mesh.scale.y = 0.3;
+                    mesh.position.y = ( i - numItems / 2 ) * 0.4;
+                    mesh.scale.x = 3;
+                    mesh.scale.z = 0.5;
+
+                    scene2.add( mesh );
+
+                }
+
+                for( let i = 0 ; i < 4 ; i ++ ){
+
+                    const m = new THREE.Mesh( boxGeometry, opaqueMaterial );
+
+                    scene2.add(m);
+
+                    const angle = i / 2 * Math.PI;
+                    m.position.set( Math.sin( angle ), 0, Math.cos(angle) ).multiplyScalar( 2 );
+                    m.scale.multiplyScalar(0.275);
+                    m.scale.y = 1.25;
+
+                }
 
                 // background
 
@@ -193,6 +211,17 @@
                 texturePass = new TexturePass();
                 texturePass.renderToScreen = true;
                 texturePass.map = textureLoader.load( './textures/hardwood2_diffuse.jpg', map => onWindowResize() );
+
+                // gui
+
+                const gui = new GUI();
+
+                const folder1 = gui.addFolder( 'Wboit Params' );
+
+                folder1.add( params, 'scene', sceneTypes ).onFinishChange( updateScene );
+                folder1.add( params, 'enabled' ).onFinishChange( updateScene );
+                folder1.add( params, 'background' ).onFinishChange( updateScene );
+                // folder1.add( params, 'doubleSide' ).onFinishChange( updateScene );
 
                 // events
 
@@ -202,8 +231,22 @@
 
                 renderer.domElement.addEventListener( 'mousemove', onMouseMove );
 
-                btnWboit.addEventListener( 'click', render, false );
-                btnNormal.addEventListener( 'click', render, false );
+            }
+
+            function updateScene() {
+
+                switch ( params.scene ) {
+
+                    case ( 'Demo 1' ):
+                        scene = scene1;
+                        break;
+
+                    case ( 'Demo 2'):
+                        scene = scene2;
+
+                }
+
+                render();
 
             }
 
@@ -247,18 +290,23 @@
 
             function render() {
 
+                if ( ! scene ) return;
+
                 let oldAutoClear = renderer.autoClear;
                 renderer.autoClear = false;
 
-                // background
+                // clear
 
                 renderer.setClearColor( 0.0, 0.0 );
                 renderer.clear();
-                texturePass.render( renderer );
+
+                // background
+
+                if ( params.background ) texturePass.render( renderer );
 
                 // scene
 
-                if ( btnWboit.checked ) {
+                if ( params.enabled ) {
 
                     wboitPass.enabled = true;
                     wboitPass.render( scene, camera );

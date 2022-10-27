@@ -97,11 +97,7 @@ const fragmentShaderRevealage = `
     void main() {
         vec4 color = vColor;
 
-        // McGuire, 03/2015
-        float w = clamp( pow( ( color.a * 8.0 + 0.01 ) * ( - gl_FragCoord.z * 0.95 + 1.0 ), 3.0 ) * 1e3, 1e-2, 3e2 );
-        vec4 reveal = vec4( color.a ) * 0.5;
-
-        gl_FragColor = clamp( reveal, 1e-2, 1.0 - 1e-2 );
+        gl_FragColor = vec4( color.a );
     }
 `;
 
@@ -271,6 +267,46 @@ class WboitRenderer {
             } );
         }
 
+        // OnBeforeCompile
+
+        function extendShaders( scene, camera ) {
+            if ( ! scene ) return;
+
+            let changedMaterials = false;
+            scene.traverse( ( object ) => {
+                if ( object.material ) {
+                    let materials = Array.isArray( object.material ) ? object.material : [ object.material ];
+
+                    for (let i = 0; i < materials.length; i ++ ) {
+                        let material = materials[i];
+
+                        if (material._wboitEnabled !== true) {
+
+                            console.log( material );
+
+                            const existingOnBeforeCompile = material.onBeforeCompile;
+                            material.onBeforeCompile = function( shader, renderer ) {
+                                if (typeof existingOnBeforeCompile === 'function') existingOnBeforeCompile( shader, renderer );
+
+                                shader.fragmentShader = shader.fragmentShader.replace( /}$/gm, `
+                                        gl_FragColor = vec4( 1.0, 1.0, 1.0, 1.0 );
+                                    }
+                                `);
+
+                                console.log( shader.fragmentShader );
+                            }
+
+                            material.needsUpdate = true;
+                            material._wboitEnabled = true;
+                            changedMaterials = true;
+                        }
+                    }
+                }
+            } );
+
+            // if ( changedMaterials ) renderer.compile( scene, camera )
+        }
+
         // Render
 
         const clearColorZero = new THREE.Color( 0.0, 0.0, 0.0 );
@@ -301,6 +337,9 @@ class WboitRenderer {
             renderer.getClearColor( currentClearColor );
 			currentClearAlpha = renderer.getClearAlpha();
             currentOverrideMaterial = scene.overrideMaterial;
+
+            // Verify Extra Shader Content
+            extendShaders( scene, camera );
 
             // Render Opaque Objects
             changeVisible( scene, true, false );
