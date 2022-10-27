@@ -35,7 +35,7 @@
 			import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
             import { TexturePass } from 'three/addons/postprocessing/TexturePass.js';
 
-            import { WboitRenderer } from '../src/WboitRenderer.js';
+            import { WboitRendererColorOnly } from '../src/WboitRendererColorOnly.js';
 
 			let gl;
             let scene, camera, controls, renderer;
@@ -72,7 +72,7 @@
                     console.error( "No OES_texture_float support for float textures!" );
                 }
 
-                wboitPass = new WboitRenderer( renderer );
+                wboitPass = new WboitRendererColorOnly( renderer );
 
                 camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 0.1, 500 );
                 camera.position.z = 10;

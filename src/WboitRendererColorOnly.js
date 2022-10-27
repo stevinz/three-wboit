@@ -11,24 +11,21 @@
 ///////////////////////////////////////////////////////////////////////////////////*/
 //
 //  Types of Order Independent Transparency
-//      Depth Peeling, 2001 (many passes, slowest)
+//      Depth Peeling, 2001 (many passes)
 //      Dual Depth Peeling, 2008 (many passes)
 //      Weighted, Blended, 2013 (fastest, approximate, mobile friendly)
 //
 //  THREE Issue:
 //      https://github.com/mrdoob/three.js/issues/9977
 //
-//  More:
-//      https://stackoverflow.com/questions/38892933/order-independent-transparency-and-mixed-opaque-and-translucent-object-hierarchi
-//      https://github.com/ingun37/threejs-depth-peeling-demo
-//
 /////////////////////////////////////////////////////////////////////////////////////
 //
 //  TODO:
+//      - Check for WebGL2, if so, use single Accumulation pass (MultipleRenderTargets)
 //      - Support Built-In Shaders (look at that closed demo by some guy)
-//      - Better demo
 //      - Develop as Pass? Need to enable/disable opaque/transparent objects
 //
+/////////////////////////////////////////////////////////////////////////////////////
 
 import * as THREE from 'three';
 
@@ -82,9 +79,7 @@ const fragmentShaderAccumulation = `
 
         // McGuire, 03/2015
         float w = clamp( pow( ( color.a * 8.0 + 0.01 ) * ( - gl_FragCoord.z * 0.95 + 1.0 ), 3.0 ) * 1e3, 1e-2, 3e2 );
-        vec4 accum = vec4( color.rgb, color.a ) * w;
-
-        gl_FragColor = clamp( accum, 1e-2, 1.0 - 1e-2 );
+        gl_FragColor = vec4( color.rgb, color.a ) * w;
     }
 `;
 
@@ -97,6 +92,7 @@ const fragmentShaderRevealage = `
     void main() {
         vec4 color = vColor;
 
+        // // McGuire, 03/2015
         gl_FragColor = vec4( color.a );
     }
 `;
@@ -108,10 +104,11 @@ const fragmentShaderCompositing = `
     uniform sampler2D tRevealage;
 
     void main() {
+        // McGuire, 03/2015
         vec4 accum = texture2D( tAccumulation, vUv );
         float reveal = texture2D( tRevealage, vUv ).r;
-
-        gl_FragColor = clamp( vec4( accum.rgb / clamp( accum.a, 1e-4, 5e4 ), reveal ), 0.001, 0.999 );
+        vec4 composite = vec4( accum.rgb / clamp( accum.a, 0.0001, 50000.0 ), reveal );
+        gl_FragColor = clamp( composite, 0.001, 0.999 );
     }
 `;
 
@@ -120,13 +117,13 @@ const fragmentShaderCompositing = `
 /////////////////////////////////////////////////////////////////////////////////////
 
 /** Weighted, Blended Order-Independent Transparency Renderer */
-class WboitRenderer {
+class WboitRendererColorOnly {
 
     constructor ( renderer ) {
 
         const self = this;
 
-        // Materials
+        // Materials, Copy
 
         const blendMaterial = new THREE.ShaderMaterial( {
             vertexShader: vertexShaderQuad,
@@ -156,13 +153,15 @@ class WboitRenderer {
             blendDst: THREE.ZeroFactor,
         } );
 
+        // Materials, Wboit
+
         const accumulationMaterial = new THREE.ShaderMaterial( {
             vertexShader: vertexShaderAccumulation,
             fragmentShader: fragmentShaderAccumulation,
             uniforms: {
                 "tOpaque": { value: null },
             },
-            side: THREE.DoubleSide,
+            side: THREE.FrontSide,
             depthWrite: false,
             depthTest: true,
             transparent: true,
@@ -178,7 +177,7 @@ class WboitRenderer {
             uniforms: {
                 "tOpaque": { value: null },
             },
-            side: THREE.DoubleSide,
+            side: THREE.FrontSide,
             depthWrite: false,
             depthTest: true,
             transparent: true,
@@ -267,46 +266,6 @@ class WboitRenderer {
             } );
         }
 
-        // OnBeforeCompile
-
-        function extendShaders( scene, camera ) {
-            if ( ! scene ) return;
-
-            let changedMaterials = false;
-            scene.traverse( ( object ) => {
-                if ( object.material ) {
-                    let materials = Array.isArray( object.material ) ? object.material : [ object.material ];
-
-                    for (let i = 0; i < materials.length; i ++ ) {
-                        let material = materials[i];
-
-                        if (material._wboitEnabled !== true) {
-
-                            console.log( material );
-
-                            const existingOnBeforeCompile = material.onBeforeCompile;
-                            material.onBeforeCompile = function( shader, renderer ) {
-                                if (typeof existingOnBeforeCompile === 'function') existingOnBeforeCompile( shader, renderer );
-
-                                shader.fragmentShader = shader.fragmentShader.replace( /}$/gm, `
-                                        gl_FragColor = vec4( 1.0, 1.0, 1.0, 1.0 );
-                                    }
-                                `);
-
-                                console.log( shader.fragmentShader );
-                            }
-
-                            material.needsUpdate = true;
-                            material._wboitEnabled = true;
-                            changedMaterials = true;
-                        }
-                    }
-                }
-            } );
-
-            // if ( changedMaterials ) renderer.compile( scene, camera )
-        }
-
         // Render
 
         const clearColorZero = new THREE.Color( 0.0, 0.0, 0.0 );
@@ -337,9 +296,6 @@ class WboitRenderer {
             renderer.getClearColor( currentClearColor );
 			currentClearAlpha = renderer.getClearAlpha();
             currentOverrideMaterial = scene.overrideMaterial;
-
-            // Verify Extra Shader Content
-            extendShaders( scene, camera );
 
             // Render Opaque Objects
             changeVisible( scene, true, false );
@@ -396,7 +352,7 @@ class WboitRenderer {
 /////   Exports
 /////////////////////////////////////////////////////////////////////////////////////
 
-export { WboitRenderer };
+export { WboitRendererColorOnly };
 
 /////////////////////////////////////////////////////////////////////////////////////
 /////   Reference
@@ -418,8 +374,8 @@ export { WboitRenderer };
 //                      http://casual-effects.blogspot.com/2015/03/colored-blended-order-independent.html
 //                      http://casual-effects.com/research/McGuire2016Transparency/index.html
 //
-// Working WebGL 2 WBOIT Example:
-//      Description:    WebGL 2 Example: Order-independent Transparency
+// Working WebGL 2 Example:
+//      Description:    WebGL 2 Example: Weighted, Blended Order-independent Transparency
 //      Author:         Tarek Sherif <@tsherif>
 //      License:        Distributed under the MIT License
 //      Source:         https://github.com/tsherif/webgl2examples/blob/master/oit.html
@@ -430,12 +386,21 @@ export { WboitRenderer };
 //      Source:         https://github.com/mrdoob/three.js/pull/15490
 //                      https://raw.githack.com/pailhead/three.js/depth-peel-stencil/examples/webgl_materials_depthpeel.html
 //
-//      Description:    WBOIT Example
+//      Description:    Depth Peel Example
+//      Author:         Ingun <@ingun37>
+//      Source(S):      https://github.com/ingun37/threejs-depth-peeling-demo
+//                      https://github.com/mrdoob/three.js/pull/24227
+//
+//      Description:    Weighted, Blended Example
 //      Author:         Alexander Rose <@arose>
 //      Source(s):      https://github.com/mrdoob/three.js/issues/4814
 //                      https://github.com/arose/three.js/tree/oit
 //                      https://github.com/mrdoob/three.js/compare/dev...arose:three.js:oit
 //                      https://raw.githack.com/arose/three.js/oit/examples/webgl_oit.html
+//
+// Other Reference(s):
+//      Multiple Render Targets
+//          https://github.com/mrdoob/three.js/blob/master/examples/webgl2_multiple_rendertargets.html
 //
 /////////////////////////////////////////////////////////////////////////////////////
 /////   License
@@ -448,6 +413,8 @@ export { WboitRenderer };
 //
 // Some Portions
 //      Copyright (c) 2010-2022 mrdoob and three.js authors
+//      Copyright (c) 2014 Alexander Rose
+//      Copyright (c) 2017 Tarek Sherif
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal

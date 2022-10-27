@@ -11,7 +11,7 @@
 ///////////////////////////////////////////////////////////////////////////////////*/
 //
 //  Types of Order Independent Transparency
-//      Depth Peeling, 2001 (many passes, slowest)
+//      Depth Peeling, 2001 (many passes)
 //      Dual Depth Peeling, 2008 (many passes)
 //      Weighted, Blended, 2013 (fastest, approximate, mobile friendly)
 //
@@ -20,13 +20,11 @@
 //
 //  More:
 //      https://stackoverflow.com/questions/38892933/order-independent-transparency-and-mixed-opaque-and-translucent-object-hierarchi
-//      https://github.com/ingun37/threejs-depth-peeling-demo
 //
 /////////////////////////////////////////////////////////////////////////////////////
 //
 //  TODO:
 //      - Support Built-In Shaders (look at that closed demo by some guy)
-//      - Better demo
 //      - Develop as Pass? Need to enable/disable opaque/transparent objects
 //
 
@@ -83,10 +81,6 @@ const fragmentShaderAccumulation = `
         // McGuire, 03/2015
         float w = clamp( pow( ( color.a * 8.0 + 0.01 ) * ( - gl_FragCoord.z * 0.95 + 1.0 ), 3.0 ) * 1e3, 1e-2, 3e2 );
         gl_FragColor = vec4( color.rgb, color.a ) * w;
-
-        // // TSherif, 10/2018
-        // float w = clamp( pow( min( 1.0, color.a * 10.0 ) + 0.01, 3.0 ) * 1e8 * pow( 1.0 - gl_FragCoord.z * 0.9, 3.0 ), 1e-2, 3e3 );
-        // gl_FragColor = vec4( color.rgb * w, color.a );
     }
 `;
 
@@ -101,10 +95,6 @@ const fragmentShaderRevealage = `
 
         // // McGuire, 03/2015
         gl_FragColor = vec4( color.a );
-
-        // // TSherif, 10/2018
-        // float w = clamp( pow( min( 1.0, color.a * 10.0 ) + 0.01, 3.0 ) * 1e8 * pow( 1.0 - gl_FragCoord.z * 0.9, 3.0 ), 1e-2, 3e3 );
-        // gl_FragColor = vec4( color.a * w );
     }
 `;
 
@@ -115,17 +105,11 @@ const fragmentShaderCompositing = `
     uniform sampler2D tRevealage;
 
     void main() {
-        // // McGuire, 03/2015
+        // McGuire, 03/2015
         vec4 accum = texture2D( tAccumulation, vUv );
         float reveal = texture2D( tRevealage, vUv ).r;
         vec4 composite = vec4( accum.rgb / clamp( accum.a, 0.0001, 50000.0 ), reveal );
         gl_FragColor = clamp( composite, 0.001, 0.999 );
-
-        // // TSherif, 10/2018
-        // vec4 accum = texture2D( tAccumulation, vUv );
-        // float a = 1.0 - accum.a;
-        // accum.a = texture2D( tRevealage, vUv ).r;
-        // gl_FragColor = vec4( a * accum.rgb / clamp( accum.a, 0.001, 50000.0 ), a );
     }
 `;
 
@@ -134,7 +118,7 @@ const fragmentShaderCompositing = `
 /////////////////////////////////////////////////////////////////////////////////////
 
 /** Weighted, Blended Order-Independent Transparency Renderer */
-class WboitRenderer {
+class WboitRendererColorOnly {
 
     constructor ( renderer ) {
 
@@ -184,16 +168,8 @@ class WboitRenderer {
             transparent: true,
             blending: THREE.CustomBlending,
             blendEquation: THREE.AddEquation,
-            // // McGuire, 03/2015
             blendSrc: THREE.OneFactor,
             blendDst: THREE.OneFactor,
-
-            // // TSherif, 10/2018
-            // blendSrc: THREE.OneFactor,
-            // blendDst: THREE.OneFactor,
-            // blendEquationAlpha: THREE.AddEquation,
-            // blendSrcAlpha: THREE.ZeroFactor,
-            // blendDstAlpha: THREE.OneMinusSrcAlphaFactor,
         } );
 
         const revealageMaterial = new THREE.ShaderMaterial( {
@@ -208,14 +184,8 @@ class WboitRenderer {
             transparent: true,
             blending: THREE.CustomBlending,
             blendEquation: THREE.AddEquation,
-            // // McGuire, 03/2015
             blendSrc: THREE.ZeroFactor,
             blendDst: THREE.OneMinusSrcAlphaFactor,
-
-            // // TSherif, 10/2018
-            // blendSrc: THREE.OneFactor,
-            // blendDst: THREE.OneFactor,
-            // blendEquationAlpha: THREE.AddEquation,
         } );
 
         const compositingMaterial = new THREE.ShaderMaterial( {
@@ -228,14 +198,8 @@ class WboitRenderer {
             transparent: true,
             blending: THREE.CustomBlending,
             blendEquation: THREE.AddEquation,
-
-            // // McGuire, 03/2015
             blendSrc: THREE.OneMinusSrcAlphaFactor,
             blendDst: THREE.SrcAlphaFactor,
-
-            // TSherif, 10/2018
-            // blendSrc: THREE.OneFactor,
-            // blendDst: THREE.OneMinusSrcAlphaFactor,
         } );
 
         // Render Targets
@@ -303,6 +267,46 @@ class WboitRenderer {
             } );
         }
 
+        // OnBeforeCompile
+
+        function extendShaders( scene, camera ) {
+            if ( ! scene ) return;
+
+            let changedMaterials = false;
+            scene.traverse( ( object ) => {
+                if ( object.material ) {
+                    let materials = Array.isArray( object.material ) ? object.material : [ object.material ];
+
+                    for (let i = 0; i < materials.length; i ++ ) {
+                        let material = materials[i];
+
+                        if (material._wboitEnabled !== true) {
+
+                            console.log( material );
+
+                            const existingOnBeforeCompile = material.onBeforeCompile;
+                            material.onBeforeCompile = function( shader, renderer ) {
+                                if (typeof existingOnBeforeCompile === 'function') existingOnBeforeCompile( shader, renderer );
+
+                                shader.fragmentShader = shader.fragmentShader.replace( /}$/gm, `
+                                        gl_FragColor = vec4( 1.0, 1.0, 1.0, 1.0 );
+                                    }
+                                `);
+
+                                console.log( shader.fragmentShader );
+                            }
+
+                            material.needsUpdate = true;
+                            material._wboitEnabled = true;
+                            changedMaterials = true;
+                        }
+                    }
+                }
+            } );
+
+            // if ( changedMaterials ) renderer.compile( scene, camera )
+        }
+
         // Render
 
         const clearColorZero = new THREE.Color( 0.0, 0.0, 0.0 );
@@ -334,6 +338,9 @@ class WboitRenderer {
 			currentClearAlpha = renderer.getClearAlpha();
             currentOverrideMaterial = scene.overrideMaterial;
 
+            // Verify Extra Shader Content
+            extendShaders( scene, camera );
+
             // Render Opaque Objects
             changeVisible( scene, true, false );
             scene.overrideMaterial = null;
@@ -347,10 +354,7 @@ class WboitRenderer {
             // Render Transparent Objects, Accumulation Pass
             scene.overrideMaterial = accumulationMaterial;
             renderer.setRenderTarget( baseTarget );
-            // // McGuire, 03/2015
             renderer.setClearColor( clearColorZero, 0.0 );
-            // // TSherif, 10/2018
-            // renderer.setClearColor( clearColorZero, 1.0 );
             renderer.clearColor();
             renderer.render( scene, camera );
             copyTarget( baseTarget, accumulationTarget );
@@ -358,10 +362,7 @@ class WboitRenderer {
             // Render Transparent Objects, Revealage Pass
             scene.overrideMaterial = revealageMaterial;
             renderer.setRenderTarget( baseTarget );
-            // // McGuire, 03/2015
             renderer.setClearColor( clearColorOne, 1.0 );
-            // // TSherif, 10/2018
-            // renderer.setClearColor( clearColorZero, 1.0 );
             renderer.clearColor();
             renderer.render( scene, camera );
             copyTarget( baseTarget, revealageTarget );
@@ -395,7 +396,7 @@ class WboitRenderer {
 /////   Exports
 /////////////////////////////////////////////////////////////////////////////////////
 
-export { WboitRenderer };
+export { WboitRendererColorOnly };
 
 /////////////////////////////////////////////////////////////////////////////////////
 /////   Reference
@@ -428,6 +429,11 @@ export { WboitRenderer };
 //      Author:         Dusan Bosnjak <@pailhead>
 //      Source:         https://github.com/mrdoob/three.js/pull/15490
 //                      https://raw.githack.com/pailhead/three.js/depth-peel-stencil/examples/webgl_materials_depthpeel.html
+//
+//      Description:    Depth Peel Example
+//      Author:         Ingun <@ingun37>
+//      Source(S):      https://github.com/ingun37/threejs-depth-peeling-demo
+//                      https://github.com/mrdoob/three.js/pull/24227
 //
 //      Description:    Weighted, Blended Example
 //      Author:         Alexander Rose <@arose>
