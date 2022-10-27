@@ -28,7 +28,6 @@
 //      - Support Built-In Shaders (look at that closed demo by some guy)
 //      - Better demo
 //      - Develop as Pass? Need to enable/disable opaque/transparent objects
-//      - Modulate OpaqueTexture?
 //
 
 import * as THREE from 'three';
@@ -71,52 +70,21 @@ const fragmentShaderCopy = `
     }
 `;
 
-const fragmentShaderModulate = `
-    precision highp float;
-    precision highp int;
-
-    varying vec4 vColor;
-    varying vec2 vUv;
-
-    uniform sampler2D tOpaque;
-
-    void main() {
-        // Final lit rgba color of transparent object to draw
-        vec4 color = vColor;
-
-        // Current pixel color from opaque render
-        vec4 transmit = texture2D( tOpaque, vUv );
-
-        // Output
-        gl_FragColor = vec4( color.a * ( vec3( 1.0 ) - transmit.rgb ), transmit.a );
-    }
-`;
-
 const fragmentShaderAccumulation = `
     precision highp float;
     precision highp int;
 
     varying vec4 vColor;
-    varying vec2 vUv;
-
-    uniform sampler2D tOpaque;
-
-    // McGuire, 03/2015
-    float weight(float z, float a) {
-        return clamp( pow( ( a * 8.0 + 0.01 ) * ( - z * 0.95 + 1.0 ), 3.0 ) * 1e3, 1e-2, 3e2 );
-    }
 
     void main() {
-        // Final lit rgba color of transparent object to draw, ensure premultiplied
         vec4 color = vColor;
         color.rgb *= color.a;
 
-        // // Modulate based on existing opaque render
-        // vec4 transmit = texture2D( tOpaque, vUv );
-        // color.a *= 1.0 - ( ( transmit.r + transmit.g + transmit.b ) * ( 1.0 / 3.0 ) );
+        // McGuire, 03/2015
+        float w = clamp( pow( ( color.a * 8.0 + 0.01 ) * ( - gl_FragCoord.z * 0.95 + 1.0 ), 3.0 ) * 1e3, 1e-2, 3e2 );
+        vec4 accum = vec4( color.rgb, color.a ) * w;
 
-        vec4 accum = vec4( color.rgb, color.a ) * weight( gl_FragCoord.z, color.a );
-        gl_FragColor = clamp( accum, 0.001, 0.999 );
+        gl_FragColor = clamp( accum, 1e-2, 1.0 - 1e-2 );
     }
 `;
 
@@ -125,20 +93,11 @@ const fragmentShaderRevealage = `
     precision highp int;
 
     varying vec4 vColor;
-    varying vec2 vUv;
-
-    uniform sampler2D tOpaque;
 
     void main() {
-        // Final lit rgba color of transparent object to draw
         vec4 color = vColor;
 
-        // // Modulate based on existing opaque render
-        // vec4 transmit = texture2D( tOpaque, vUv );
-        // color.a *= 1.0 - ( ( transmit.r + transmit.g + transmit.b ) * ( 1.0 / 3.0 ) );
-
-        // Output
-        gl_FragColor = clamp( vec4( color.a ), 0.001, 0.999 );
+        gl_FragColor = vec4( color.a );
     }
 `;
 
@@ -194,20 +153,6 @@ class WboitRenderer {
             blendEquation: THREE.AddEquation,
             blendSrc: THREE.OneFactor,
             blendDst: THREE.ZeroFactor,
-        });
-
-        const modulateMaterial = new THREE.ShaderMaterial({
-            vertexShader: vertexShaderAccumulation,
-            fragmentShader: fragmentShaderModulate,
-            uniforms: {
-                "tOpaque": { value: null },
-            },
-            depthTest: false,
-            depthWrite: false,
-            blending: THREE.CustomBlending,
-            blendEquation: THREE.AddEquation,
-            blendSrc: THREE.SrcAlphaFactor,
-            blendDst: THREE.OneMinusSrcAlphaFactor,
         });
 
         const accumulationMaterial = new THREE.ShaderMaterial({
@@ -272,11 +217,6 @@ class WboitRenderer {
             type: THREE.FloatType, format: THREE.RGBAFormat, stencilBuffer: false, depthBuffer: false,
         });
 
-        const modulateTarget = new THREE.WebGLRenderTarget( window.innerWidth, window.innerHeight, {
-            minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter,
-            type: THREE.FloatType, format: THREE.RGBAFormat, stencilBuffer: false, depthBuffer: false,
-        });
-
         const accumulationTarget = new THREE.WebGLRenderTarget( window.innerWidth, window.innerHeight, {
             minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter,
             type: THREE.FloatType, format: THREE.RGBAFormat, stencilBuffer: false, depthBuffer: false,
@@ -304,7 +244,6 @@ class WboitRenderer {
             if (self.enabled === true) {
                 baseTarget.setSize( window.innerWidth, window.innerHeight );
                 opaqueTarget.setSize( window.innerWidth, window.innerHeight );
-                modulateTarget.setSize( window.innerWidth, window.innerHeight );
                 accumulationTarget.setSize( window.innerWidth, window.innerHeight );
                 revealageTarget.setSize( window.innerWidth, window.innerHeight );
             }
@@ -315,6 +254,7 @@ class WboitRenderer {
         // Visibility
 
         function changeVisible( scene, opaqueVisible = true, transparentVisible = true ) {
+            if (! scene) return;
             scene.traverse( ( object ) => {
                 if ( object.material ) {
                     if ( object.material.transparent === true ) {
@@ -322,6 +262,18 @@ class WboitRenderer {
                     } else {
                         object.visible = opaqueVisible;
                     }
+                }
+            });
+        }
+
+        // OnBeforeCompile
+
+        function extendShaders( scene ) {
+            if (! scene) return;
+            scene.traverse( ( object ) => {
+                if ( object.material ) {
+
+
                 }
             });
         }
@@ -357,6 +309,9 @@ class WboitRenderer {
 			currentClearAlpha = renderer.getClearAlpha();
             currentOverrideMaterial = scene.overrideMaterial;
 
+            // Verify Extra Shader Content
+            extendShaders();
+
             // Render Opaque Objects
             changeVisible( scene, true, false );
             scene.overrideMaterial = null;
@@ -368,7 +323,6 @@ class WboitRenderer {
             changeVisible( scene, false, true );
 
             // Render Transparent Objects, Accumulation Pass
-            // accumulationMaterial.uniforms[ 'tOpaque' ].value = opaqueTarget.texture;
             scene.overrideMaterial = accumulationMaterial;
             renderer.setRenderTarget( baseTarget );
             renderer.setClearColor( clearColorZero, 0.0 );
@@ -377,20 +331,12 @@ class WboitRenderer {
             copyTarget( baseTarget, accumulationTarget );
 
             // Render Transparent Objects, Revealage Pass
-            // revealageMaterial.uniforms[ 'tOpaque' ].value = opaqueTarget.texture;
             scene.overrideMaterial = revealageMaterial;
             renderer.setRenderTarget( baseTarget );
             renderer.setClearColor( clearColorOne, 1.0 );
             renderer.clearColor();
             renderer.render( scene, camera );
             copyTarget( baseTarget, revealageTarget );
-
-            // // Modulate / Blend Opaque Pixels
-            // copyTarget( opaqueTarget, modulateTarget );
-            // modulateMaterial.uniforms[ 'tOpaque' ].value = opaqueTarget.texture;
-            // scene.overrideMaterial = modulateMaterial;
-            // renderer.setRenderTarget( modulateTarget );
-            // renderer.render( scene, camera );
 
             // Blend Opaque Texture with WriteBuffer
             blendTarget( opaqueTarget, writeBuffer );
