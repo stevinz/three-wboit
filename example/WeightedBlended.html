@@ -9,9 +9,19 @@
 	<body>
 
 		<div id="info">
-            <a href="http://threejs.org" target="_blank">three.js</a> - Weighted Blended Order-Independent Transparency (<a href="http://jcgt.org/published/0002/02/09/">paper</a>, <a href="http://casual-effects.blogspot.de/2014/03/weighted-blended-order-independent.html">blog</a>)
+            <a href="http://threejs.org" target="_blank">three.js</a> - Weighted Blended Order-Independent Transparency (<a href="http://jcgt.org/published/0002/02/09/">paper</a>, <a href="http://casual-effects.blogspot.com/2015/03/implemented-weighted-blended-order.html">blog</a>)
+            <br>See external <a href="https://github.com/stevinz/three-oit" target="_blank" rel="noopener">three-oit</a> for more information on order independent transparency.
+            <span id="model" style="display: none;"><br>pirate ship model by <a href="https://www.kenney.nl/assets/pirate-kit" target="_blank" rel="noopener">kenny</a></span>
             <br /><span id="color"></span><br />
         </div>
+
+        <a href="https://github.com/stevinz/three-oit" class="github-corner" aria-label="View source on GitHub">
+			<svg width="80" height="80" viewBox="0 0 250 250" style="fill:#08f; color:#000000; position: absolute; top: 0; border: 0; left: 0; transform: scale(-1, 1);" aria-hidden="true">
+				<path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path>
+				<path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path>
+				<path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path>
+			</svg>
+		</a>
 
 		<!-- Import maps polyfill -->
 		<!-- Remove this when import maps will be widely supported -->
@@ -32,6 +42,8 @@
 
 			import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 
+            import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+            import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 			import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
             import { TexturePass } from 'three/addons/postprocessing/TexturePass.js';
 
@@ -44,16 +56,17 @@
             let mouse = new THREE.Vector2();
             let pixelBuffer = new Uint8Array( 4 );
 
-            let scene1 = new THREE.Scene();
-            let scene2 = new THREE.Scene();
-            let scene3 = new THREE.Scene();
+            const scenes = [];
+            const sceneTypes = [ 'Squares', 'Torus Knot', 'Stacked Boxes', 'Ship' ];
 
-            const sceneTypes = [ 'Demo 1', 'Demo 2', 'Demo 3' ];
+            sceneTypes.forEach( (type) => {
+                scenes[ type ] = new THREE.Scene();
+            });
 
             const params = {
-				scene: 'Demo 1',
+				scene: 'Squares',
                 enabled: true,
-				background: true,
+				background: false,
                 doubleSide: true,
 			};
 
@@ -76,6 +89,8 @@
 
                 camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 0.1, 500 );
                 camera.position.z = 10;
+                // camera.position.y = 7.7;
+                // camera.position.x = 7.7;
 
                 controls = new OrbitControls( camera, renderer.domElement );
                 controls.dynamicDampingFactor = 0.3;
@@ -100,40 +115,36 @@
                     depthWrite: true,
                 } );
 
-                // scene 1
+                // scene 'Squares'
 
                 const coloredVertices = new Float32Array( [
+                    1, 1,   0, - 1, 1,   0, - 1, - 1,   0, 1, 1,   0, - 1, - 1,   0, 1, - 1,   0,   // center
                     0, 0, - 1, - 2, 0, - 1, - 2, - 2, - 1, 0, 0, - 1, - 2, - 2, - 1, 0, - 2, - 1,   // back
-                    1, 1, 0, - 1, 1, 0, - 1, - 1, 0, 1, 1, 0, - 1, - 1, 0, 1, - 1, 0,               // center
-                    2, 2, 1, 0, 2, 1, 0, 0, 1, 2, 2, 1, 0, 0, 1, 2, 0, 1                            // front
+                    2, 2,   1,   0, 2,   1,   0,   0,   1, 2, 2,   1,   0,   0,   1, 2,   0,   1,   // front
                 ] );
 
                 const coloredGeometry = new THREE.BufferGeometry();
                 coloredGeometry.setAttribute( 'position', new THREE.BufferAttribute( coloredVertices, 3 ) );
-
                 const squareColors = new Float32Array( 6 /* points */ * 3 /* faces */ * 4 /* stride */, 4 );
-                for ( let i = 0; i < 6; i ++ ) squareColors.set( [ 1.0, 0, 0, 0.50 ], i * 4 );
-                for ( let i = 6; i < 12; i ++ ) squareColors.set( [ 1.0, 1.0, 0, 0.50 ], i * 4 );
+                for ( let i = 0; i < 6; i ++ ) squareColors.set( [ 1.0, 1, 0, 0.50 ], i * 4 );
+                for ( let i = 6; i < 12; i ++ ) squareColors.set( [ 1.0, 0.0, 0, 0.50 ], i * 4 );
                 for ( let i = 12; i < 18; i ++ ) squareColors.set( [ 0, 0, 1.0, 0.50 ], i * 4 );
                 coloredGeometry.setAttribute( 'color', new THREE.BufferAttribute( squareColors, 4 ) );
 
-                scene1.add( new THREE.Mesh( coloredGeometry, transparentMaterial ) );
+                scenes[ 'Squares' ].add( new THREE.Mesh( coloredGeometry, transparentMaterial ) );
 
-                const opaqueVertices = new Float32Array( [
-                      0.5,   1.5, 0.5,  // Top Right
-                    - 0.5,   1.5, 0.5,  // Top Left
-                    - 0.5, - 1.5, 0.5,  // Bottom Left
-                      0.5,   1.5, 0.5,  // Top Right
-                    - 0.5, - 1.5, 0.5,  // Bottom Left
-                      0.5, - 1.5, 0.5,  // Bottom Right
-                ] );
+                const opaqueRectangle1 = new THREE.Mesh( new THREE.PlaneGeometry( 0.7, 1.4 ), opaqueMaterial );
+                scenes[ 'Squares' ].add( opaqueRectangle1 );
+                opaqueRectangle1.position.y = 0.5;
+                opaqueRectangle1.position.z = 0.5;
 
-                const opaqueGeometry = new THREE.BufferGeometry();
-                opaqueGeometry.setAttribute( 'position', new THREE.Float32BufferAttribute( opaqueVertices, 3 ) );
+                const opaqueRectangle2 = new THREE.Mesh( new THREE.PlaneGeometry( 0.7, 1.4 ), opaqueMaterial );
+                scenes[ 'Squares' ].add( opaqueRectangle2 );
+                opaqueRectangle2.position.x = - 1.0;
+                opaqueRectangle2.rotation.z = Math.PI / 2;
+                opaqueRectangle2.position.z = - 0.5;
 
-                scene1.add( new THREE.Mesh( opaqueGeometry, opaqueMaterial ) );
-
-                // scene 2
+                // scene 'Torus Knot'
 
                 const torusKnotGeometry = new THREE.TorusKnotGeometry( 1.5, 0.4, 100, 16 );
                 const torusPoints = torusKnotGeometry.attributes.position.count;
@@ -145,8 +156,8 @@
 
                 for ( let i = 0; i < torusPoints; i ++ ) {
 
-                    let x = torusKnotGeometry.attributes.uv.array[ ( i * 2 ) + 0 ];
-                    let y = torusKnotGeometry.attributes.uv.array[ ( i * 2 ) + 1 ];
+                    const x = torusKnotGeometry.attributes.uv.array[ ( i * 2 ) + 0 ];
+                    const y = torusKnotGeometry.attributes.uv.array[ ( i * 2 ) + 1 ];
 
                     let r = y;
                     let g = 1.0 - y;
@@ -158,9 +169,9 @@
 
                 torusKnotGeometry.setAttribute( 'color', new THREE.Float32BufferAttribute( torusColors, 4 ) );
 
-                scene2.add( new THREE.Mesh( torusKnotGeometry, transparentMaterial ) );
+                scenes[ 'Torus Knot' ].add( new THREE.Mesh( torusKnotGeometry, transparentMaterial ) );
 
-                // scene 3
+                // scene 'Stacked Boxes'
 
                 const numItems = 10;
                 const boxGeometry = new THREE.BoxGeometry( 2, 2, 2, 1, 1, 1 );
@@ -183,22 +194,65 @@
                     mesh.scale.x = 3;
                     mesh.scale.z = 0.5;
 
-                    scene3.add( mesh );
+                    scenes[ 'Stacked Boxes' ].add( mesh );
 
                 }
 
                 for( let i = 0 ; i < 4 ; i ++ ){
 
-                    const m = new THREE.Mesh( boxGeometry, opaqueMaterial );
+                    const mesh = new THREE.Mesh( boxGeometry, opaqueMaterial );
 
-                    scene3.add(m);
+                    scenes[ 'Stacked Boxes' ].add( mesh );
 
                     const angle = i / 2 * Math.PI;
-                    m.position.set( Math.sin( angle ), 0, Math.cos(angle) ).multiplyScalar( 2 );
-                    m.scale.multiplyScalar(0.275);
-                    m.scale.y = 1.25;
+                    mesh.position.set( Math.sin( angle ), 0, Math.cos( angle) ).multiplyScalar( 2 );
+                    mesh.scale.multiplyScalar(0.275);
+                    mesh.scale.y = 1.25;
 
                 }
+
+                // scene 'Ship'
+
+                const loader = new GLTFLoader();
+
+                const dracoLoader = new DRACOLoader();
+                dracoLoader.setDecoderPath( 'https://unpkg.com/three@0.145.0/examples/js/libs/draco/' );
+                loader.setDRACOLoader( dracoLoader );
+
+                let seed = 15; // 5, 7, 9
+                function random() {
+                    let x = Math.sin( seed ++ ) * 10000;
+                    return x - Math.floor( x );
+                }
+
+                loader.load( './models/ship.gltf', function ( gltf ) {
+
+                    gltf.scene.traverse( ( object ) => {
+
+                            if ( object.geometry ) {
+                                const objectPoints = object.geometry.attributes.position.count;
+                                const objectColors = new Float32Array( objectPoints * 4 /* stride */, 4 );
+                                const clr = new THREE.Color().setHex( random() * 0xffffff );
+
+                                for ( let j = 0; j < objectPoints; j ++ ) objectColors.set( [ clr.r, clr.g, clr.b, 0.50 ], j * 4 );
+                                object.geometry.setAttribute( 'color', new THREE.Float32BufferAttribute( objectColors, 4 ) );
+                            }
+
+                            if ( object.material ) object.material = transparentMaterial;
+
+                    } );
+
+                    scenes[ 'Ship' ].add( gltf.scene );
+
+                    gltf.scene.rotation.y = Math.PI / 1.5;
+                    gltf.scene.position.y -= 2.00;
+                    gltf.scene.scale.multiplyScalar( 0.85 );
+
+                }, undefined, function ( error ) {
+
+                    console.error( error );
+
+                } );
 
                 // background
 
@@ -216,7 +270,16 @@
                 folder1.add( params, 'scene', sceneTypes ).onFinishChange( updateScene );
                 folder1.add( params, 'enabled' ).onFinishChange( updateScene );
                 folder1.add( params, 'background' ).onFinishChange( updateScene );
-                // folder1.add( params, 'doubleSide' ).onFinishChange( updateScene );
+                folder1.add( params, 'doubleSide' ).onFinishChange( () => {
+
+                    const side = ( params.doubleSide ) ? THREE.DoubleSide : THREE.FrontSide;
+                    transparentMaterial.side = side;
+                    opaqueMaterial.side = side;
+                    wboitPass.changeSide( side );
+
+                    updateScene();
+
+                } );
 
                 // events
 
@@ -230,21 +293,9 @@
 
             function updateScene() {
 
-                switch ( params.scene ) {
+                scene = scenes[ params.scene ];
 
-                    case ( 'Demo 1' ):
-                        scene = scene1;
-                        break;
-
-                    case ( 'Demo 2'):
-                        scene = scene2;
-                        break;
-
-                    case ( 'Demo 3'):
-                        scene = scene3;
-                        break;
-
-                }
+                document.getElementById( 'model' ).style.display = ( params.scene === 'Ship' ) ? '' : 'none';
 
                 render();
 
@@ -292,7 +343,7 @@
 
                 if ( ! scene ) return;
 
-                let oldAutoClear = renderer.autoClear;
+                const oldAutoClear = renderer.autoClear;
                 renderer.autoClear = false;
 
                 // clear
