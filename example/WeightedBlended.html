@@ -47,7 +47,7 @@
 			import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
             import { TexturePass } from 'three/addons/postprocessing/TexturePass.js';
 
-            import { WboitRendererColorOnly } from '../src/WboitRendererColorOnly.js';
+            import { WboitPass } from '../src/WboitPass.js';
 
 			let gl;
             let scene, camera, controls, renderer;
@@ -59,9 +59,11 @@
             const scenes = [];
             const sceneTypes = [ 'Boxes', 'Lattice', 'Knot', 'Ship' ];
 
-            sceneTypes.forEach( (type) => {
+            sceneTypes.forEach( ( type ) => {
+
                 scenes[ type ] = new THREE.Scene();
-            });
+
+            } );
 
             const params = {
 				scene: 'Boxes',
@@ -71,21 +73,19 @@
 			};
 
             init();
-            onWindowResize();
-            updateScene();
             animate();
+            onWindowResize();
 
             function init() {
 
-                renderer = new THREE.WebGLRenderer( { preserveDrawingBuffer: true } );
+                renderer = new THREE.WebGL1Renderer( { preserveDrawingBuffer: true } );
+                renderer.autoClear = false;
                 document.body.appendChild( renderer.domElement );
 
                 gl = renderer.getContext();
                 if ( ! renderer.capabilities.floatFragmentTextures ) {
                     console.error( "No OES_texture_float support for float textures!" );
                 }
-
-                wboitPass = new WboitRendererColorOnly( renderer );
 
                 camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 0.1, 500 );
                 camera.position.z = 10;
@@ -116,9 +116,9 @@
                 // scene 'Boxes'
 
                 const coloredVertices = new Float32Array( [
-                    1, 1, 0, - 1, 1, 0, - 1, - 1, 0, 1, 1, 0, - 1, - 1, 0, 1, - 1,   0,             // center
-                    0, 0, - 1, - 2, 0, - 1, - 2, - 2, - 1, 0, 0, - 1, - 2, - 2, - 1, 0, - 2, - 1,   // back
-                    2, 2, 1, 0, 2, 1, 0, 0, 1, 2, 2, 1, 0, 0, 1, 2, 0, 1,                           // front
+                      1,   1,   0, - 1,   1,   0, - 1, - 1,   0,  1,   1,   0, - 1, - 1,   0,  1, - 1,   0, // center
+                      0,   0, - 1, - 2,   0, - 1, - 2, - 2, - 1,  0,   0, - 1, - 2, - 2, - 1,  0, - 2, - 1, // back
+                      2,   2,   1,   0,   2,   1,   0,   0,   1,  2,   2,   1,   0,   0,   1,  2,   0,   1, // front
                 ] );
 
                 const coloredGeometry = new THREE.BufferGeometry();
@@ -220,9 +220,12 @@
                 loader.setDRACOLoader( dracoLoader );
 
                 let seed = 21; // 5, 7, 9, 15, 16
-                function simpleRandom() {
-                    let x = Math.sin( seed ++ ) * 10000;
+
+                function seededRandom() {
+
+                    const x = Math.sin( seed ++ ) * 10000;
                     return x - Math.floor( x );
+
                 }
 
                 loader.load( './models/ship.gltf', function ( gltf ) {
@@ -230,12 +233,14 @@
                     gltf.scene.traverse( ( object ) => {
 
                             if ( object.geometry ) {
+
                                 const objectPoints = object.geometry.attributes.position.count;
                                 const objectColors = new Float32Array( objectPoints * 4 /* stride */, 4 );
-                                const clr = new THREE.Color().setHex( simpleRandom() * 0xffffff );
+                                const clr = new THREE.Color().setHex( seededRandom() * 0xffffff );
 
                                 for ( let j = 0; j < objectPoints; j ++ ) objectColors.set( [ clr.r, clr.g, clr.b, 0.50 ], j * 4 );
                                 object.geometry.setAttribute( 'color', new THREE.Float32BufferAttribute( objectColors, 4 ) );
+
                             }
 
                             if ( object.material ) object.material = transparentMaterial;
@@ -244,6 +249,7 @@
 
                     scenes[ 'Ship' ].add( gltf.scene );
 
+                    gltf.scene.position.z = - 0.5;
                     gltf.scene.rotation.y = Math.PI / 1.5;
                     gltf.scene.position.y -= 2.00;
                     gltf.scene.scale.multiplyScalar( 0.85 );
@@ -254,12 +260,20 @@
 
                 } );
 
+                // initial scene
+
+                scene = scenes[ params.scene ];
+
                 // background
 
                 const textureLoader = new THREE.TextureLoader();
                 texturePass = new TexturePass();
                 texturePass.renderToScreen = true;
                 texturePass.map = textureLoader.load( './textures/hardwood2_diffuse.jpg', map => onWindowResize() );
+
+                // wboit pass
+
+                wboitPass = new WboitPass( scene, camera, renderer );
 
                 // gui
 
@@ -275,7 +289,7 @@
                     const side = ( params.doubleSide ) ? THREE.DoubleSide : THREE.FrontSide;
                     transparentMaterial.side = side;
                     opaqueMaterial.side = side;
-                    wboitPass.changeSide( side );
+                    wboitPass.setSide( side );
 
                     updateScene();
 
@@ -291,9 +305,10 @@
 
             }
 
-            function updateScene() {
+            function updateScene( ) {
 
                 scene = scenes[ params.scene ];
+                wboitPass.scene = scene;
 
                 document.getElementById( 'model' ).style.display = ( params.scene === 'Ship' ) ? '' : 'none';
 
@@ -308,14 +323,16 @@
 
                 renderer.setSize( window.innerWidth, window.innerHeight );
 
+                wboitPass.setSize( window.innerWidth, window.innerHeight );
+
                 render();
 
             }
 
-            function onMouseMove( e ) {
+            function onMouseMove( event ) {
 
-                mouse.x = e.clientX;
-                mouse.y = e.clientY;
+                mouse.x = event.clientX;
+                mouse.y = event.clientY;
 
             }
 
@@ -343,9 +360,6 @@
 
                 if ( ! scene ) return;
 
-                const oldAutoClear = renderer.autoClear;
-                renderer.autoClear = false;
-
                 // clear
 
                 renderer.setClearColor( 0.0, 0.0 );
@@ -359,19 +373,13 @@
 
                 if ( params.enabled ) {
 
-                    wboitPass.enabled = true;
-                    wboitPass.render( scene, camera );
+                    wboitPass.render( renderer );
 
                 } else {
 
-                    wboitPass.enabled = false;
                     renderer.render( scene, camera );
 
                 }
-
-                // reset
-
-                renderer.autoClear = oldAutoClear;
 
             }
 

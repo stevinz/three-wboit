@@ -9,24 +9,6 @@
 //      See end of file for license details and acknowledgements
 //
 ///////////////////////////////////////////////////////////////////////////////////*/
-//
-//  Types of Order Independent Transparency
-//      Depth Peeling, 2001 (many passes)
-//      Dual Depth Peeling, 2008 (many passes)
-//      Weighted, Blended, 2013 (fastest, approximate, mobile friendly)
-//
-//  THREE Issue(s):
-//      https://github.com/mrdoob/three.js/issues/9977
-//      https://github.com/mrdoob/three.js/pull/24227
-//
-/////////////////////////////////////////////////////////////////////////////////////
-//
-//  TODO:
-//      - Check for WebGL2, if so, use single Accumulation pass (MultipleRenderTargets)
-//      - Support Built-In Shaders (look at that closed demo by some guy)
-//      - Develop as Pass? Need to enable/disable opaque/transparent objects
-//
-/////////////////////////////////////////////////////////////////////////////////////
 
 import * as THREE from 'three';
 
@@ -78,7 +60,7 @@ const fragmentShaderAccumulation = `
         vec4 color = vColor;
         color.rgb *= color.a;
 
-        // // McGuire, 10/2013
+        // McGuire, 10/2013
         float w = clamp( pow( ( color.a * 8.0 + 0.01 ) * ( - gl_FragCoord.z * 0.95 + 1.0 ), 3.0 ) * 1e3, 1e-2, 3e2 );
         gl_FragColor = vec4( color.rgb, color.a ) * w;
     }
@@ -93,7 +75,7 @@ const fragmentShaderRevealage = `
     void main() {
         vec4 color = vColor;
 
-        // // McGuire, 10/2013
+        // McGuire, 10/2013
         gl_FragColor = vec4( color.a );
     }
 `;
@@ -105,7 +87,7 @@ const fragmentShaderCompositing = `
     uniform sampler2D tRevealage;
 
     void main() {
-        // // McGuire, 10/2013
+        // McGuire, 10/2013
         vec4 accum = texture2D( tAccumulation, vUv );
         float reveal = texture2D( tRevealage, vUv ).r;
         vec4 composite = vec4( accum.rgb / clamp( accum.a, 0.0001, 50000.0 ), reveal );
@@ -114,10 +96,9 @@ const fragmentShaderCompositing = `
 `;
 
 /////////////////////////////////////////////////////////////////////////////////////
-/////   Order Independent Transparency
+/////   Weighted, Blended Order-Independent Transparency Renderer
 /////////////////////////////////////////////////////////////////////////////////////
 
-/** Weighted, Blended Order-Independent Transparency Renderer */
 class WboitRendererColorOnly {
 
     constructor ( renderer ) {
@@ -282,7 +263,7 @@ class WboitRendererColorOnly {
             renderer.render( blendQuad, quadCamera );
         }
 
-        function copyTarget( fromTarget, toTarget, blend = false ) {
+        function copyTarget( fromTarget, toTarget ) {
             renderer.setRenderTarget( toTarget );
             copyMaterial.uniforms[ 'tDiffuse' ].value = fromTarget.texture;
             renderer.render( copyQuad, quadCamera );
@@ -401,10 +382,6 @@ export { WboitRendererColorOnly };
 //                      https://github.com/arose/three.js/tree/oit
 //                      https://github.com/mrdoob/three.js/compare/dev...arose:three.js:oit
 //                      https://raw.githack.com/arose/three.js/oit/examples/webgl_oit.html
-//
-// Other Reference(s):
-//      Multiple Render Targets
-//          https://github.com/mrdoob/three.js/blob/master/examples/webgl2_multiple_rendertargets.html
 //
 /////////////////////////////////////////////////////////////////////////////////////
 /////   License
