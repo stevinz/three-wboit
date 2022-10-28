@@ -28,7 +28,10 @@
 //          - go over render()
 //      - Check for WebGL2, if so, use single Accumulation pass (MultipleRenderTargets)
 //      - Support Built-In Shaders (look at that closed demo by some guy)
+//
+//  Demo
 //      - Option to turn transparency on / off
+//      - Scene with texture maps
 //
 /////////////////////////////////////////////////////////////////////////////////////
 
@@ -40,87 +43,11 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { CopyShader } from 'three/addons/shaders/CopyShader.js';
 import { WboitCompositeShader } from './WboitCompositeShader.js';
 
-///// Vertex Shaders
-
-const vertexShaderAccumulation = `
-    precision highp float;
-    precision highp int;
-
-    attribute vec4 color;
-
-    varying vec4 vColor;
-    varying vec2 vUv;
-
-    void main() {
-        vColor = color;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
-    }
-`;
-
-const fragmentShaderAccumulation = `
-    precision highp float;
-    precision highp int;
-
-    varying vec4 vColor;
-
-    void main() {
-        vec4 color = vColor;
-        color.rgb *= color.a;
-
-        // McGuire, 10/2013
-        float w = clamp( pow( ( color.a * 8.0 + 0.01 ) * ( - gl_FragCoord.z * 0.95 + 1.0 ), 3.0 ) * 1e3, 1e-2, 3e2 );
-        gl_FragColor = vec4( color.rgb, color.a ) * w;
-    }
-`;
-
-const fragmentShaderRevealage = `
-    precision highp float;
-    precision highp int;
-
-    varying vec4 vColor;
-
-    void main() {
-        vec4 color = vColor;
-        gl_FragColor = vec4( color.a );
-    }
-`;
-
-///// Local Variables
+import { MeshWboitMaterial } from './MeshWboitMaterial.js';
+import { WboitShaderStages } from './MeshWboitMaterial.js';
 
 const _clearColorZero = new THREE.Color( 0.0, 0.0, 0.0 );
 const _clearColorOne = new THREE.Color( 1.0, 1.0, 1.0 );
-
-const accumulationMaterial = new THREE.ShaderMaterial( {
-    vertexShader: vertexShaderAccumulation,
-    fragmentShader: fragmentShaderAccumulation,
-    uniforms: {
-        "tOpaque": { value: null },
-    },
-    side: THREE.DoubleSide,
-    depthWrite: false,
-    depthTest: true,
-    transparent: true,
-    blending: THREE.CustomBlending,
-    blendEquation: THREE.AddEquation,
-    blendSrc: THREE.OneFactor,
-    blendDst: THREE.OneFactor,
-} );
-
-const revealageMaterial = new THREE.ShaderMaterial( {
-    vertexShader: vertexShaderAccumulation,
-    fragmentShader: fragmentShaderRevealage,
-    uniforms: {
-        "tOpaque": { value: null },
-    },
-    side: THREE.DoubleSide,
-    depthWrite: false,
-    depthTest: true,
-    transparent: true,
-    blending: THREE.CustomBlending,
-    blendEquation: THREE.AddEquation,
-    blendSrc: THREE.ZeroFactor,
-    blendDst: THREE.OneMinusSrcAlphaFactor,
-} );
 
 /////////////////////////////////////////////////////////////////////////////////////
 /////   Weighted, Blended Order-Independent Transparency
@@ -128,7 +55,12 @@ const revealageMaterial = new THREE.ShaderMaterial( {
 
 class WboitPass extends Pass {
 
-    constructor ( scene, camera, renderer, clearColor, clearAlpha ) {
+    constructor ( renderer, scene, camera, clearColor, clearAlpha ) {
+
+        if ( ! renderer ) {
+            console.error( `WboitPass.constructor: Renderer must be supplied!` );
+            return;
+        }
 
         super();
 
@@ -142,9 +74,12 @@ class WboitPass extends Pass {
 		this.clearDepth = false;
 		this.needsSwap = false;
 
-        // Intrenal
+        // Internal
 
 		this._oldClearColor = new THREE.Color();
+        this._webGL2 = renderer.capabilities.isWebGL2;
+
+        console.log( `Is WebGL2? ${this._webGL2}` );
 
         // Render Targets
 
@@ -205,6 +140,28 @@ class WboitPass extends Pass {
         this.compositePass.material.blendSrc = THREE.OneMinusSrcAlphaFactor;
         this.compositePass.material.blendDst = THREE.SrcAlphaFactor;
 
+        // Materials
+
+        this.accumulationMaterial = new MeshWboitMaterial( {
+
+            stage: WboitShaderStages.ACCUMULATION,
+            vertexColors: true,
+            side: THREE.DoubleSide,
+            // color: new THREE.Color(1, 0,0),
+            // opacity: 0.5,
+
+        } );
+
+        this.revealageMaterial = new MeshWboitMaterial( {
+
+            stage: WboitShaderStages.REVEALAGE,
+            vertexColors: true,
+            side: THREE.DoubleSide,
+            // color: new THREE.Color(1, 0,0),
+            // opacity: 0.5,
+
+        } );
+
     }
 
     dispose() {
@@ -217,12 +174,15 @@ class WboitPass extends Pass {
         this.copyPass.dispose();
         this.compositePass.dispose();
 
+        this.accumulationMaterial.dispose();
+        this.revealageMaterial.dispose();
+
     }
 
     setSide( side ) {
 
-        revealageMaterial.side = side;
-        accumulationMaterial.side = side;
+        if ( this.accumulationMaterial ) this.accumulationMaterial.side = side;
+        if ( this.revealageMaterial ) this.revealageMaterial.side = side;
 
     }
 
@@ -268,7 +228,7 @@ class WboitPass extends Pass {
         renderer.render( this.scene, this.camera );
         changeVisible( this.scene, false, true );
 
-        // Blend Opaque Texture with WriteBuffer
+        // Copy Opaque Render to Write Buffer (so we can re-use depth buffer)
         if ( this.clearColor ) {
             renderer.setRenderTarget( writeBuffer );
 			renderer.setClearColor( this.clearColor, this.clearAlpha );
@@ -277,26 +237,27 @@ class WboitPass extends Pass {
         this.blendPass.render( renderer, writeBuffer, this.baseTarget );
 
         // Render Transparent Objects, Accumulation Pass
-        this.scene.overrideMaterial = accumulationMaterial;
+        this.scene.overrideMaterial = this.accumulationMaterial;
         renderer.setRenderTarget( this.baseTarget );
         renderer.setClearColor( _clearColorZero, 0.0 );
         renderer.clearColor();
         renderer.render( this.scene, this.camera );
+
+        // Copy Accumulation Render to temp target (so we can re-use depth buffer)
         this.copyPass.render( renderer, this.accumulationTarget, this.baseTarget );
 
         // Render Transparent Objects, Revealage Pass
-        this.scene.overrideMaterial = revealageMaterial;
+        this.scene.overrideMaterial = this.revealageMaterial;
         renderer.setRenderTarget( this.baseTarget );
         renderer.setClearColor( _clearColorOne, 1.0 );
         renderer.clearColor();
         renderer.render( this.scene, this.camera );
-        this.copyPass.render( renderer, this.revealageTarget, this.baseTarget );
 
         // Composite Transparent Objects
         this.scene.overrideMaterial = null;
         renderer.setRenderTarget( writeBuffer );
         this.compositePass.uniforms[ 'tAccumulation' ].value = this.accumulationTarget.texture;
-        this.compositePass.uniforms[ 'tRevealage' ].value = this.revealageTarget.texture;
+        this.compositePass.uniforms[ 'tRevealage' ].value = this.baseTarget.texture; // now holds revealage render
         this.compositePass.render( renderer, writeBuffer );
 
         // Restore Original State
