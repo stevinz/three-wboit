@@ -33,7 +33,9 @@
 
 import * as THREE from 'three';
 
+import { CopyShader } from 'three/addons/shaders/CopyShader.js';
 import { Pass } from 'three/addons/postprocessing/Pass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 
 ///// Vertex Shaders
 
@@ -123,34 +125,6 @@ const fragmentShaderCompositing = `
 const _clearColorZero = new THREE.Color( 0.0, 0.0, 0.0 );
 const _clearColorOne = new THREE.Color( 1.0, 1.0, 1.0 );
 
-const blendMaterial = new THREE.ShaderMaterial( {
-    vertexShader: vertexShaderQuad,
-    fragmentShader: fragmentShaderCopy,
-    uniforms: {
-        "tDiffuse": { value: null },
-    },
-    depthTest: false,
-    depthWrite: false,
-    blending: THREE.CustomBlending,
-    blendEquation: THREE.AddEquation,
-    blendSrc: THREE.SrcAlphaFactor,
-    blendDst: THREE.OneMinusSrcAlphaFactor,
-} );
-
-const copyMaterial = new THREE.ShaderMaterial( {
-    vertexShader: vertexShaderQuad,
-    fragmentShader: fragmentShaderCopy,
-    uniforms: {
-        "tDiffuse": { value: null },
-    },
-    depthTest: false,
-    depthWrite: false,
-    blending: THREE.CustomBlending,
-    blendEquation: THREE.AddEquation,
-    blendSrc: THREE.OneFactor,
-    blendDst: THREE.ZeroFactor,
-} );
-
 const accumulationMaterial = new THREE.ShaderMaterial( {
     vertexShader: vertexShaderAccumulation,
     fragmentShader: fragmentShaderAccumulation,
@@ -202,8 +176,6 @@ const quadGeometry = new THREE.BufferGeometry();
 quadGeometry.setAttribute( 'position', new THREE.Float32BufferAttribute( [ - 1, 3, 0, - 1, - 1, 0, 3, - 1, 0 ], 3 ) );
 quadGeometry.setAttribute( 'uv', new THREE.Float32BufferAttribute( [ 0, 2, 0, 0, 2, 0 ], 2 ) );
 
-const blendQuad = new THREE.Mesh( quadGeometry.clone(), blendMaterial );
-const copyQuad = new THREE.Mesh( quadGeometry.clone(), copyMaterial );
 const compositingQuad = new THREE.Mesh( quadGeometry.clone(), compositingMaterial );
 
 /////////////////////////////////////////////////////////////////////////////////////
@@ -270,6 +242,24 @@ class WboitPass extends Pass {
             depthBuffer: false,
         } );
 
+        // Passes
+
+        this.blendPass = new ShaderPass( CopyShader );
+        this.blendPass.material.depthTest = false;
+        this.blendPass.material.depthWrite = false;
+        this.blendPass.material.blending = THREE.CustomBlending;
+        this.blendPass.material.blendEquation = THREE.AddEquation;
+        this.blendPass.material.blendSrc = THREE.SrcAlphaFactor;
+        this.blendPass.material.blendDst = THREE.OneMinusSrcAlphaFactor;
+
+        this.copyPass = new ShaderPass( CopyShader );
+        this.copyPass.material.depthTest = false;
+        this.copyPass.material.depthWrite = false;
+        this.copyPass.material.blending = THREE.CustomBlending;
+        this.copyPass.material.blendEquation = THREE.AddEquation;
+        this.copyPass.material.blendSrc = THREE.OneFactor;
+        this.copyPass.material.blendDst = THREE.ZeroFactor;
+
     }
 
     dispose() {
@@ -278,6 +268,9 @@ class WboitPass extends Pass {
         this.opaqueTarget.dispose();
         this.accumulationTarget.dispose();
         this.revealageTarget.dispose();
+
+        this.blendPass.dispose();
+        this.copyPass.dispose();
 
     }
 
@@ -314,18 +307,6 @@ class WboitPass extends Pass {
             } );
         }
 
-        function blendTarget( fromTarget, toTarget ) {
-            renderer.setRenderTarget( toTarget );
-            blendMaterial.uniforms[ 'tDiffuse' ].value = fromTarget.texture;
-            renderer.render( blendQuad, quadCamera );
-        }
-
-        function copyTarget( fromTarget, toTarget ) {
-            renderer.setRenderTarget( toTarget );
-            copyMaterial.uniforms[ 'tDiffuse' ].value = fromTarget.texture;
-            renderer.render( copyQuad, quadCamera );
-        }
-
         // Save Current State
         const oldAutoClear = renderer.autoClear;;
         const oldClearAlpha = renderer.getClearAlpha();
@@ -341,7 +322,7 @@ class WboitPass extends Pass {
         renderer.setClearColor( _clearColorZero, 0.0 );
         renderer.clear();
         renderer.render( this.scene, this.camera );
-        copyTarget( this.baseTarget, this.opaqueTarget );
+        this.copyPass.render( renderer, this.opaqueTarget, this.baseTarget );
         changeVisible( this.scene, false, true );
 
         // Render Transparent Objects, Accumulation Pass
@@ -350,7 +331,7 @@ class WboitPass extends Pass {
         renderer.setClearColor( _clearColorZero, 0.0 );
         renderer.clearColor();
         renderer.render( this.scene, this.camera );
-        copyTarget( this.baseTarget, this.accumulationTarget );
+        this.copyPass.render( renderer, this.accumulationTarget, this.baseTarget );
 
         // Render Transparent Objects, Revealage Pass
         this.scene.overrideMaterial = revealageMaterial;
@@ -358,10 +339,10 @@ class WboitPass extends Pass {
         renderer.setClearColor( _clearColorOne, 1.0 );
         renderer.clearColor();
         renderer.render( this.scene, this.camera );
-        copyTarget( this.baseTarget, this.revealageTarget );
+        this.copyPass.render( renderer, this.revealageTarget, this.baseTarget );
 
         // Blend Opaque Texture with WriteBuffer
-        blendTarget( this.opaqueTarget, writeBuffer );
+        this.blendPass.render( renderer, writeBuffer, this.opaqueTarget );
 
         // Composite Transparent Objects
         compositingMaterial.uniforms[ 'tAccumulation' ].value = this.accumulationTarget.texture;
