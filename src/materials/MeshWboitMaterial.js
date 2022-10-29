@@ -9,7 +9,6 @@
 ///////////////////////////////////////////////////////////////////////////////////*/
 
 import { UniformsUtils, UniformsLib, ShaderMaterial, MultiplyOperation } from 'three';
-import { CustomBlending, AddEquation, OneFactor, ZeroFactor, OneMinusSrcAlphaFactor } from 'three';
 
 const WboitStages = {
     Normal: 0.0,

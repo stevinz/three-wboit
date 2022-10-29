@@ -1,2 +1,2 @@
-export { MeshWboitMaterial } from './MeshWboitMaterial.js';
+export { MeshWboitMaterial } from './materials/MeshWboitMaterial.js';
 export { WboitPass } from './WboitPass.js';

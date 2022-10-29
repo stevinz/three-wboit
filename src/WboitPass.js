@@ -27,8 +27,9 @@
 //          - Material cache for changing blend functions
 //
 //  Demo
-//      - Option to turn transparency on / off
 //      - Scene with texture maps
+//      - Play with transparency more?? Algorithm?
+//          - Why doesn't opcaity = 1.0 look good?
 //
 //  Short Docs
 //
@@ -42,10 +43,8 @@ import { Pass } from 'three/addons/postprocessing/Pass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 
 import { CopyShader } from 'three/addons/shaders/CopyShader.js';
-import { WboitCompositeShader } from './WboitCompositeShader.js';
-
-import { MeshWboitMaterial } from './MeshWboitMaterial.js';
-import { WboitStages } from './MeshWboitMaterial.js';
+import { WboitCompositeShader } from './shaders/WboitCompositeShader.js';
+import { WboitStages } from './materials/MeshWboitMaterial.js';
 
 const _clearColorZero = new THREE.Color( 0.0, 0.0, 0.0 );
 const _clearColorOne = new THREE.Color( 1.0, 1.0, 1.0 );
@@ -175,6 +174,7 @@ class WboitPass extends Pass {
         function prepareWboitBlending( scene, stage ) {
 
             scene.traverse( ( object ) => {
+
                 if ( ! object.material ) return;
 
                 let materials = Array.isArray( object.material ) ? object.material : [ object.material ];
@@ -190,13 +190,21 @@ class WboitPass extends Pass {
                     switch ( stage ) {
 
                         case WboitStages.Acummulation:
+
                             materials[i].blending = THREE.CustomBlending;
                             materials[i].blendEquation = THREE.AddEquation;
                             materials[i].blendSrc = THREE.OneFactor;
                             materials[i].blendDst = THREE.OneFactor;
+
+                            // if ( materials[i].opacity >= 1.0 ) {
+                            //     materials[i].blendDst = THREE.ZeroFactor;
+                            //     materials[i].depthWrite = true;
+                            // }
+
                             break;
 
                         case WboitStages.Revealage:
+
                             materials[i].blending = THREE.CustomBlending;
                             materials[i].blendEquation = THREE.AddEquation;
                             materials[i].blendSrc = THREE.ZeroFactor;
@@ -204,6 +212,7 @@ class WboitPass extends Pass {
                             break;
 
                         default:
+
                             materials[i].blending = THREE.NormalBlending;
                             materials[i].blendEquation = THREE.AddEquation
                             materials[i].blendSrc = THREE.SrcAlphaFactor;

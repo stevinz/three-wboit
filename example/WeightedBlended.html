@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
-	<head>
-		<title>three.js webgl - order independent transparency</title>
-		<meta charset="utf-8">
-		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-		<link type="text/css" rel="stylesheet" href="main.css">
-	</head>
-	<body>
+    <head>
+        <title>three.js webgl - order independent transparency</title>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+        <link type="text/css" rel="stylesheet" href="main.css">
+    </head>
+    <body>
 
-		<div id="info">
+        <div id="info">
             <a href="http://threejs.org" target="_blank">three.js</a> - Weighted Blended Order-Independent Transparency (<a href="http://jcgt.org/published/0002/02/09/">paper</a>, <a href="http://casual-effects.blogspot.com/2015/03/implemented-weighted-blended-order.html">blog</a>)
             <br>See external <a href="https://github.com/stevinz/three-oit" target="_blank" rel="noopener">three-oit</a> for more information on order independent transparency.
             <span id="model" style="display: none;"><br>pirate ship model by <a href="https://www.kenney.nl/assets/pirate-kit" target="_blank" rel="noopener">kenny</a></span>
@@ -16,38 +16,38 @@
         </div>
 
         <a href="https://github.com/stevinz/three-oit" class="github-corner" aria-label="View source on GitHub">
-			<svg width="80" height="80" viewBox="0 0 250 250" style="fill:#08f; color:#000000; position: absolute; top: 0; border: 0; left: 0; transform: scale(-1, 1);" aria-hidden="true">
-				<path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path>
-				<path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path>
-				<path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path>
-			</svg>
-		</a>
+            <svg width="80" height="80" viewBox="0 0 250 250" style="fill:#08f; color:#000000; position: absolute; top: 0; border: 0; left: 0; transform: scale(-1, 1);" aria-hidden="true">
+                <path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path>
+                <path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path>
+                <path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path>
+            </svg>
+        </a>
 
-		<!-- Import maps polyfill -->
-		<!-- Remove this when import maps will be widely supported -->
-		<script async src="https://unpkg.com/es-module-shims@1.3.6/dist/es-module-shims.js"></script>
+        <!-- Import maps polyfill -->
+        <!-- Remove this when import maps will be widely supported -->
+        <script async src="https://unpkg.com/es-module-shims@1.3.6/dist/es-module-shims.js"></script>
 
- 		<script type='importmap'>
-	 		{
-		 		"imports": {
-			 		"three": "https://unpkg.com/three@0.146.0/build/three.module.js",
-					"three/addons/": "https://unpkg.com/three@0.146.0/examples/jsm/"
-		 		}
-	 		}
- 		</script>
+         <script type='importmap'>
+             {
+                 "imports": {
+                     "three": "https://unpkg.com/three@0.146.0/build/three.module.js",
+                    "three/addons/": "https://unpkg.com/three@0.146.0/examples/jsm/"
+                 }
+             }
+         </script>
 
-		<script type="module">
+        <script type="module">
 
-			import * as THREE from 'three';
+            import * as THREE from 'three';
 
-			import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+            import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 
             import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
             import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-			import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+            import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
             import { TexturePass } from 'three/addons/postprocessing/TexturePass.js';
 
-            import { MeshWboitMaterial } from '../src/MeshWboitMaterial.js';
+            import { MeshWboitMaterial } from '../src/materials/MeshWboitMaterial.js';
             import { WboitPass } from '../src/WboitPass.js';
 
             let scene, camera, controls, renderer, texturePass, wboitPass;
@@ -58,19 +58,15 @@
 
             const scenes = [];
             const sceneTypes = [ 'Boxes', 'Lattice', 'Knot', 'Ship' ];
-
-            sceneTypes.forEach( ( type ) => {
-
-                scenes[ type ] = new THREE.Scene();
-
-            } );
+            sceneTypes.forEach( type => scenes[ type ] = new THREE.Scene() );
 
             const params = {
-				scene: 'Boxes',
+                scene: 'Boxes',
                 enabled: true,
-				background: false,
+                background: false,
                 doubleSide: true,
-			};
+                transparency: 0.75,
+            };
 
             init();
             animate();
@@ -98,13 +94,13 @@
 
                 const transparentMaterial = new MeshWboitMaterial( {
                     side: THREE.DoubleSide,
+                    transparent: true,
                     vertexColors: true,
-                    opacity: 1.0,
+                    opacity: 0.75,
                 } );
 
                 const opaqueMaterial = new THREE.MeshBasicMaterial( {
                     side: THREE.DoubleSide,
-                    transparent: false,
                     color: new THREE.Color( 0.85, 0.85, 0.85 ),
                 } );
 
@@ -117,27 +113,26 @@
                 ] );
 
                 const coloredGeometry = new THREE.BufferGeometry();
-
                 coloredGeometry.setAttribute( 'position', new THREE.BufferAttribute( coloredVertices, 3 ) );
 
                 const squareColors = new Float32Array( 6 /* points */ * 3 /* faces */ * 4 /* stride */, 4 );
                 for ( let i = 0; i < 6; i ++ ) squareColors.set( [ 1.0, 1, 0, 0.5 ], i * 4 );
-                for ( let i = 6; i < 12; i ++ ) squareColors.set( [ 1.0, 0.0, 0, 0.75 ], i * 4 );
-                for ( let i = 12; i < 18; i ++ ) squareColors.set( [ 0, 0, 1.0, 0.75 ], i * 4 );
+                for ( let i = 6; i < 12; i ++ ) squareColors.set( [ 1.0, 0.0, 0, 1.0 ], i * 4 );
+                for ( let i = 12; i < 18; i ++ ) squareColors.set( [ 0, 0, 1.0, 1.0 ], i * 4 );
                 coloredGeometry.setAttribute( 'color', new THREE.BufferAttribute( squareColors, 4 ) );
 
-                scenes[ 'Boxes' ].add( new THREE.Mesh( coloredGeometry, transparentMaterial ) );
-
                 const opaqueRectangle1 = new THREE.Mesh( new THREE.PlaneGeometry( 0.7, 1.4 ), opaqueMaterial );
-                scenes[ 'Boxes' ].add( opaqueRectangle1 );
                 opaqueRectangle1.position.y = 0.5;
                 opaqueRectangle1.position.z = 0.5;
 
                 const opaqueRectangle2 = new THREE.Mesh( new THREE.PlaneGeometry( 0.7, 1.4 ), opaqueMaterial );
-                scenes[ 'Boxes' ].add( opaqueRectangle2 );
                 opaqueRectangle2.position.x = - 1.0;
                 opaqueRectangle2.rotation.z = Math.PI / 2;
                 opaqueRectangle2.position.z = - 0.5;
+
+                scenes[ 'Boxes' ].add( new THREE.Mesh( coloredGeometry, transparentMaterial.clone() ) );
+                scenes[ 'Boxes' ].add( opaqueRectangle1 );
+                scenes[ 'Boxes' ].add( opaqueRectangle2 );
 
                 // scene 'Knot'
 
@@ -145,43 +140,35 @@
                 const torusPoints = torusKnotGeometry.attributes.position.count;
                 const torusColors = new Float32Array( torusPoints * 4 /* stride */, 4 );
 
-                const redColor = new THREE.Color( 1.0, 0.0, 0.0 );
-                const greenColor = new THREE.Color( 0.0, 1.0, 0.0 );
-                const blueColor = new THREE.Color( 0.0, 0.0, 1.0 );
-
                 for ( let i = 0; i < torusPoints; i ++ ) {
 
                     const x = torusKnotGeometry.attributes.uv.array[ ( i * 2 ) + 0 ];
                     const y = torusKnotGeometry.attributes.uv.array[ ( i * 2 ) + 1 ];
 
-                    let r = y;
-                    let g = 1.0 - y;
-                    let b = x;
-                    r *= ( 1.0 - b );
-                    torusColors.set( [ r, g, b, 0.50 ], i * 4 );
+                    torusColors.set( [ y * ( 1.0 - x ), 1.0 - y, x, 1.00 ], i * 4 );
 
                 }
 
                 torusKnotGeometry.setAttribute( 'color', new THREE.Float32BufferAttribute( torusColors, 4 ) );
 
-                scenes[ 'Knot' ].add( new THREE.Mesh( torusKnotGeometry, transparentMaterial ) );
+                scenes[ 'Knot' ].add( new THREE.Mesh( torusKnotGeometry, transparentMaterial.clone() ) );
 
                 // scene 'Lattice'
 
                 const numItems = 10;
                 const boxGeometry = new THREE.BoxGeometry( 2, 2, 2, 1, 1, 1 );
 
-				for ( let i = 0; i < numItems; i ++ ) {
+                for ( let i = 0; i < numItems; i ++ ) {
 
                     const coloredBoxGeometry = boxGeometry.clone();
 
                     const boxPoints = coloredBoxGeometry.attributes.position.count;
                     const boxColors = new Float32Array( boxPoints * 4 /* stride */, 4 );
                     const clr = new THREE.Color().setHSL( ( i % 2 == 0 ? numItems - i : i ) / numItems, 0.75, 0.5 );
-                    for ( let j = 0; j < boxPoints; j ++ ) boxColors.set( [ clr.r, clr.g, clr.b, 0.50 ], j * 4 );
+                    for ( let j = 0; j < boxPoints; j ++ ) boxColors.set( [ clr.r, clr.g, clr.b, 1.0 ], j * 4 );
                     coloredBoxGeometry.setAttribute( 'color', new THREE.Float32BufferAttribute( boxColors, 4 ) );
 
-                    const mesh = new THREE.Mesh( coloredBoxGeometry, transparentMaterial );
+                    const mesh = new THREE.Mesh( coloredBoxGeometry, transparentMaterial.clone() );
 
                     mesh.rotation.y = i * Math.PI / 2;
                     mesh.scale.y = 0.3;
@@ -209,7 +196,6 @@
                 // scene 'Ship'
 
                 const loader = new GLTFLoader();
-
                 const dracoLoader = new DRACOLoader();
                 dracoLoader.setDecoderPath( 'https://unpkg.com/three@0.146.0/examples/js/libs/draco/' );
                 loader.setDRACOLoader( dracoLoader );
@@ -227,18 +213,18 @@
 
                     gltf.scene.traverse( ( object ) => {
 
-                            if ( object.geometry ) {
+                        if ( object.geometry ) {
 
-                                const objectPoints = object.geometry.attributes.position.count;
-                                const objectColors = new Float32Array( objectPoints * 4 /* stride */, 4 );
-                                const clr = new THREE.Color().setHex( seededRandom() * 0xffffff );
+                            const objectPoints = object.geometry.attributes.position.count;
+                            const objectColors = new Float32Array( objectPoints * 4 /* stride */, 4 );
+                            const clr = new THREE.Color().setHex( seededRandom() * 0xffffff );
 
-                                for ( let j = 0; j < objectPoints; j ++ ) objectColors.set( [ clr.r, clr.g, clr.b, 0.50 ], j * 4 );
-                                object.geometry.setAttribute( 'color', new THREE.Float32BufferAttribute( objectColors, 4 ) );
+                            for ( let j = 0; j < objectPoints; j ++ ) objectColors.set( [ clr.r, clr.g, clr.b, 0.50 ], j * 4 );
+                            object.geometry.setAttribute( 'color', new THREE.Float32BufferAttribute( objectColors, 4 ) );
 
-                            }
+                        }
 
-                            if ( object.material ) object.material = transparentMaterial;
+                        if ( object.material ) object.material = transparentMaterial.clone();
 
                     } );
 
@@ -279,22 +265,13 @@
                 folder1.add( params, 'scene', sceneTypes ).onFinishChange( updateScene );
                 folder1.add( params, 'enabled' ).onFinishChange( updateScene );
                 folder1.add( params, 'background' ).onFinishChange( updateScene );
-                folder1.add( params, 'doubleSide' ).onFinishChange( () => {
-
-                    const side = ( params.doubleSide ) ? THREE.DoubleSide : THREE.FrontSide;
-                    transparentMaterial.side = side;
-                    opaqueMaterial.side = side;
-
-                    updateScene();
-
-                } );
+                folder1.add( params, 'doubleSide' ).onFinishChange( updateSceneParameters );
+                folder1.add( params, 'transparency', 0, 1 ).onFinishChange( updateSceneParameters );
 
                 // events
 
                 window.addEventListener( 'resize', onWindowResize, false );
-
                 controls.addEventListener( 'change', render );
-
                 renderer.domElement.addEventListener( 'mousemove', onMouseMove );
 
             }
@@ -310,13 +287,37 @@
 
             }
 
+            function updateSceneParameters() {
+
+                sceneTypes.forEach( ( type ) => {
+
+                    scenes[ type ].traverse( ( object ) => {
+
+                        if ( ! object.material ) return;
+                        let materials = Array.isArray( object.material ) ? object.material : [ object.material ];
+
+                        for ( let i = 0; i < materials.length; i ++ ) {
+
+                            materials[i].side = ( params.doubleSide ) ? THREE.DoubleSide : THREE.FrontSide;
+                            if ( materials[i].isMeshWboitMaterial !== true ) continue;
+                            materials[i].opacity = params.transparency;
+
+                        }
+
+                    } );
+
+                } );
+
+                render();
+
+            }
+
             function onWindowResize() {
 
                 camera.aspect = window.innerWidth / window.innerHeight;
                 camera.updateProjectionMatrix();
 
                 renderer.setSize( window.innerWidth, window.innerHeight );
-
                 wboitPass.setSize( window.innerWidth, window.innerHeight );
 
                 render();
@@ -377,7 +378,7 @@
 
             }
 
-		</script>
+        </script>
 
-	</body>
+    </body>
 </html>
