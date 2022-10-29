@@ -47,6 +47,7 @@
 			import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
             import { TexturePass } from 'three/addons/postprocessing/TexturePass.js';
 
+            import { MeshWboitMaterial } from '../src/MeshWboitMaterial.js';
             import { WboitPass } from '../src/WboitPass.js';
 
             let scene, camera, controls, renderer, texturePass, wboitPass;
@@ -95,9 +96,8 @@
 
                 // materials
 
-                const transparentMaterial = new THREE.MeshBasicMaterial( {
+                const transparentMaterial = new MeshWboitMaterial( {
                     side: THREE.DoubleSide,
-                    transparent: true,
                     vertexColors: true,
                     opacity: 1.0,
                 } );
@@ -284,7 +284,6 @@
                     const side = ( params.doubleSide ) ? THREE.DoubleSide : THREE.FrontSide;
                     transparentMaterial.side = side;
                     opaqueMaterial.side = side;
-                    wboitPass.setSide( side );
 
                     updateScene();
 

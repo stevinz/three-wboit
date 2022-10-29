@@ -11,6 +11,12 @@
 import { UniformsUtils, UniformsLib, ShaderMaterial, MultiplyOperation } from 'three';
 import { CustomBlending, AddEquation, OneFactor, ZeroFactor, OneMinusSrcAlphaFactor } from 'three';
 
+const WboitStages = {
+    Normal: 0.0,
+    Acummulation: 1.0,
+    Revealage: 2.0,
+}
+
 const WboitBasicShader = {
 
     //  based on MeshBasicMaterial, see:
@@ -157,14 +163,14 @@ const WboitBasicShader = {
 
             // ----- wboit -----
 
-            if ( uRenderStage == 1.0 ) {
+            if ( uRenderStage == ${ WboitStages.Acummulation.toFixed(1) } ) {
 
                 vec4 accum = gl_FragColor.rgba;
                 accum.rgb *= accum.a;
                 float w = clamp( pow( ( accum.a * 8.0 + 0.01 ) * ( - gl_FragCoord.z * 0.95 + 1.0 ), 3.0 ) * 1e3, 1e-2, 3e2 );
                 gl_FragColor = vec4( accum.rgb, accum.a ) * w;
 
-            } else if ( uRenderStage == 2.0 ) {
+            } else if ( uRenderStage == ${ WboitStages.Revealage.toFixed(1) } ) {
 
                 gl_FragColor = vec4( gl_FragColor.a );
 
@@ -291,4 +297,4 @@ class MeshWboitMaterial extends ShaderMaterial {
 
 }
 
-export { MeshWboitMaterial };
+export { MeshWboitMaterial, WboitStages };
