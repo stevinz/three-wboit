@@ -44,7 +44,6 @@ import { CopyShader } from 'three/addons/shaders/CopyShader.js';
 import { WboitCompositeShader } from './WboitCompositeShader.js';
 
 import { MeshWboitMaterial } from './MeshWboitMaterial.js';
-import { WboitShaderStages } from './MeshWboitMaterial.js';
 
 const _clearColorZero = new THREE.Color( 0.0, 0.0, 0.0 );
 const _clearColorOne = new THREE.Color( 1.0, 1.0, 1.0 );
@@ -138,15 +137,6 @@ class WboitPass extends Pass {
 
         this.accumulationMaterial = new MeshWboitMaterial( {
 
-            stage: WboitShaderStages.ACCUMULATION,
-            vertexColors: true,
-            side: THREE.DoubleSide,
-
-        } );
-
-        this.revealageMaterial = new MeshWboitMaterial( {
-
-            stage: WboitShaderStages.REVEALAGE,
             vertexColors: true,
             side: THREE.DoubleSide,
 
@@ -165,14 +155,12 @@ class WboitPass extends Pass {
         this.compositePass.dispose();
 
         this.accumulationMaterial.dispose();
-        this.revealageMaterial.dispose();
 
     }
 
     setSide( side ) {
 
         if ( this.accumulationMaterial ) this.accumulationMaterial.side = side;
-        if ( this.revealageMaterial ) this.revealageMaterial.side = side;
 
     }
 
@@ -226,8 +214,18 @@ class WboitPass extends Pass {
 		}
         this.blendPass.render( renderer, writeBuffer, this.baseTarget );
 
+        // Prepare Material
+        this.accumulationMaterial.depthWrite = false;
+        this.accumulationMaterial.depthTest = true;
+        this.accumulationMaterial.transparent = true;
+        this.accumulationMaterial.blending = THREE.CustomBlending;
+        this.accumulationMaterial.blendEquation = THREE.AddEquation;
+
         // Render Transparent Objects, Accumulation Pass
+        this.accumulationMaterial.blendSrc = THREE.OneFactor;
+        this.accumulationMaterial.blendDst = THREE.OneFactor;
         this.scene.overrideMaterial = this.accumulationMaterial;
+        this.accumulationMaterial.uniforms[ 'uRenderStage' ].value = 1.0;
         renderer.setRenderTarget( this.baseTarget );
         renderer.setClearColor( _clearColorZero, 0.0 );
         renderer.clearColor();
@@ -237,7 +235,9 @@ class WboitPass extends Pass {
         this.copyPass.render( renderer, this.accumulationTarget, this.baseTarget );
 
         // Render Transparent Objects, Revealage Pass
-        this.scene.overrideMaterial = this.revealageMaterial;
+        this.accumulationMaterial.blendSrc = THREE.ZeroFactor;
+        this.accumulationMaterial.blendDst = THREE.OneMinusSrcAlphaFactor;
+        this.accumulationMaterial.uniforms[ 'uRenderStage' ].value = 2.0;
         renderer.setRenderTarget( this.baseTarget );
         renderer.setClearColor( _clearColorOne, 1.0 );
         renderer.clearColor();

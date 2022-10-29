@@ -49,10 +49,9 @@
 
             import { WboitPass } from '../src/WboitPass.js';
 
-			let gl;
-            let scene, camera, controls, renderer;
-            let texturePass, wboitPass;
+            let scene, camera, controls, renderer, texturePass, wboitPass;
 
+            let gl;
             let mouse = new THREE.Vector2();
             let pixelBuffer = new Uint8Array( 4 );
 
@@ -83,8 +82,9 @@
                 document.body.appendChild( renderer.domElement );
 
                 gl = renderer.getContext();
+
                 if ( ! renderer.capabilities.floatFragmentTextures ) {
-                    console.error( "No OES_texture_float support for float textures!" );
+                    return console.error( 'No OES_texture_float support for float textures!' );
                 }
 
                 camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 0.1, 500 );
@@ -100,17 +100,12 @@
                     transparent: true,
                     vertexColors: true,
                     opacity: 1.0,
-                    depthTest: true,
-                    depthWrite: true,
                 } );
 
                 const opaqueMaterial = new THREE.MeshBasicMaterial( {
                     side: THREE.DoubleSide,
                     transparent: false,
                     color: new THREE.Color( 0.85, 0.85, 0.85 ),
-                    opacity: 1.0,
-                    depthTest: true,
-                    depthWrite: true,
                 } );
 
                 // scene 'Boxes'

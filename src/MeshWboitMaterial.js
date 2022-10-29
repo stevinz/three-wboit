@@ -19,6 +19,13 @@ const WboitBasicShader = {
     //      https://github.com/mrdoob/three.js/blob/dev/src/renderers/shaders/ShaderLib/meshbasic.glsl.js
 
 	uniforms: UniformsUtils.merge( [
+        {
+            // ----- wboit -----
+
+            uRenderStage: { value: 0.0 },
+
+            // -----------------
+        },
 		UniformsLib.common,
 		UniformsLib.specularmap,
 		UniformsLib.envmap,
@@ -68,9 +75,17 @@ const WboitBasicShader = {
             #include <envmap_vertex>
             #include <fog_vertex>
 
-        }`,
+        }
+
+    `,
 
 	fragmentShader: /* glsl */`
+
+        // ----- wboit -----
+
+        uniform float uRenderStage;
+
+        // -----------------
 
         uniform vec3 diffuse;
         uniform float opacity;
@@ -140,22 +155,28 @@ const WboitBasicShader = {
             #include <premultiplied_alpha_fragment>
             #include <dithering_fragment>
 
-            @__WBOIT__
+            // ----- wboit -----
+
+            if ( uRenderStage == 1.0 ) {
+
+                vec4 accum = gl_FragColor.rgba;
+                accum.rgb *= accum.a;
+                float w = clamp( pow( ( accum.a * 8.0 + 0.01 ) * ( - gl_FragCoord.z * 0.95 + 1.0 ), 3.0 ) * 1e3, 1e-2, 3e2 );
+                gl_FragColor = vec4( accum.rgb, accum.a ) * w;
+
+            } else if ( uRenderStage == 2.0 ) {
+
+                gl_FragColor = vec4( gl_FragColor.a );
+
+            }
+
+            // -----------------
 
         }
 
-    `
+    `,
 
 };
-
-//
-
-const WboitShaderStages = {
-
-    ACCUMULATION: 'accumulation',
-    REVEALAGE: 'revealage',
-
-}
 
 //
 
@@ -171,51 +192,10 @@ class MeshWboitMaterial extends ShaderMaterial {
 
 		const shader = WboitBasicShader;
 
-        this.stage = parameters.stage ?? WboitShaderStages.ACCUMULATION;
 		this.defines = {};
 		this.uniforms = UniformsUtils.clone( shader.uniforms );
 		this.vertexShader = shader.vertexShader;
-
-        //  Need?
-        //      precision highp float;
-        //      precision highp int;
-
-        // force critical parameters
-
-        parameters.depthWrite = false;
-        parameters.depthTest = true;
-        parameters.transparent = true;
-        parameters.blending = CustomBlending;
-        parameters.blendEquation = AddEquation;
-
-        //
-
-        if ( this.stage === WboitShaderStages.ACCUMULATION ) {
-
-            parameters.blendSrc = OneFactor;
-            parameters.blendDst = OneFactor;
-
-            this.fragmentShader = shader.fragmentShader.replace( `@__WBOIT__`, `
-
-                vec4 accum = gl_FragColor.rgba;
-                accum.rgb *= accum.a;
-                float w = clamp( pow( ( accum.a * 8.0 + 0.01 ) * ( - gl_FragCoord.z * 0.95 + 1.0 ), 3.0 ) * 1e3, 1e-2, 3e2 );
-                gl_FragColor = vec4( accum.rgb, accum.a ) * w;
-
-            `);
-
-        } else {
-
-            parameters.blendSrc = ZeroFactor;
-            parameters.blendDst = OneMinusSrcAlphaFactor;
-
-            this.fragmentShader = shader.fragmentShader.replace( `@__WBOIT__`, `
-
-                gl_FragColor = vec4( gl_FragColor.a );
-
-            `);
-
-        }
+        this.fragmentShader = shader.fragmentShader;
 
         // properties (no uniforms)
 
@@ -311,4 +291,4 @@ class MeshWboitMaterial extends ShaderMaterial {
 
 }
 
-export { MeshWboitMaterial, WboitShaderStages };
+export { MeshWboitMaterial };
