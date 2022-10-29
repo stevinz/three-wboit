@@ -57,10 +57,7 @@ class WboitPass extends Pass {
 
     constructor ( renderer, scene, camera, clearColor, clearAlpha ) {
 
-        if ( ! renderer ) {
-            console.error( `WboitPass.constructor: Renderer must be supplied!` );
-            return;
-        }
+        if ( ! renderer ) return console.error( `WboitPass.constructor: Renderer must be supplied!` );
 
         super();
 
@@ -77,9 +74,6 @@ class WboitPass extends Pass {
         // Internal
 
 		this._oldClearColor = new THREE.Color();
-        this._webGL2 = renderer.capabilities.isWebGL2;
-
-        console.log( `Is WebGL2? ${this._webGL2}` );
 
         // Render Targets
 
@@ -147,8 +141,6 @@ class WboitPass extends Pass {
             stage: WboitShaderStages.ACCUMULATION,
             vertexColors: true,
             side: THREE.DoubleSide,
-            // color: new THREE.Color(1, 0,0),
-            // opacity: 0.5,
 
         } );
 
@@ -157,8 +149,6 @@ class WboitPass extends Pass {
             stage: WboitShaderStages.REVEALAGE,
             vertexColors: true,
             side: THREE.DoubleSide,
-            // color: new THREE.Color(1, 0,0),
-            // opacity: 0.5,
 
         } );
 
