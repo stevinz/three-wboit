@@ -18,18 +18,14 @@ const WboitStages = {
 
 const WboitBasicShader = {
 
-    //  based on MeshBasicMaterial, see:
-    //      https://github.com/mrdoob/three.js/blob/dev/src/materials/MeshBasicMaterial.js
-    //      https://github.com/mrdoob/three.js/blob/dev/src/renderers/shaders/ShaderLib.js
-    //      https://github.com/mrdoob/three.js/blob/dev/src/renderers/shaders/ShaderLib/meshbasic.glsl.js
+    // based on MeshBasicMaterial
+    // https://github.com/mrdoob/three.js/blob/dev/src/materials/MeshBasicMaterial.js
+    // https://github.com/mrdoob/three.js/blob/dev/src/renderers/shaders/ShaderLib.js
+    // https://github.com/mrdoob/three.js/blob/dev/src/renderers/shaders/ShaderLib/meshbasic.glsl.js
 
 	uniforms: UniformsUtils.merge( [
         {
-            // ----- wboit -----
-
             uRenderStage: { value: 0.0 },
-
-            // -----------------
         },
 		UniformsLib.common,
 		UniformsLib.specularmap,
@@ -86,11 +82,9 @@ const WboitBasicShader = {
 
 	fragmentShader: /* glsl */`
 
-        // ----- wboit -----
-
         uniform float uRenderStage;
 
-        // -----------------
+        //
 
         uniform vec3 diffuse;
         uniform float opacity;
@@ -134,6 +128,7 @@ const WboitBasicShader = {
             ReflectedLight reflectedLight = ReflectedLight( vec3( 0.0 ), vec3( 0.0 ), vec3( 0.0 ), vec3( 0.0 ) );
 
             // accumulation (baked indirect lighting only)
+
             #ifdef USE_LIGHTMAP
 
                 vec4 lightMapTexel = texture2D( lightMap, vUv2 );
@@ -146,6 +141,7 @@ const WboitBasicShader = {
             #endif
 
             // modulation
+
             #include <aomap_fragment>
 
             reflectedLight.indirectDiffuse *= diffuseColor.rgb;
@@ -160,22 +156,26 @@ const WboitBasicShader = {
             #include <premultiplied_alpha_fragment>
             #include <dithering_fragment>
 
-            // ----- wboit -----
+            // wboit
 
-            if ( uRenderStage == ${ WboitStages.Acummulation.toFixed(1) } ) {
+            if ( uRenderStage == ${ WboitStages.Acummulation.toFixed( 1 ) } ) {
 
                 vec4 accum = gl_FragColor.rgba;
                 accum.rgb *= accum.a;
-                float w = clamp( pow( ( accum.a * 8.0 + 0.01 ) * ( - gl_FragCoord.z * 0.95 + 1.0 ), 3.0 ) * 1e3, 1e-2, 3e2 );
-                gl_FragColor = vec4( accum.rgb, accum.a ) * w;
 
-            } else if ( uRenderStage == ${ WboitStages.Revealage.toFixed(1) } ) {
+                // // McGuire 10/2013
+                // float w = clamp( pow( ( accum.a * 8.0 + 0.01 ) * ( - gl_FragCoord.z * 0.95 + 1.0 ), 3.0 ) * 1e3, 1e-2, 3e2 );
+                // gl_FragColor = vec4( accum.rgb, accum.a ) * w;
+
+                // // Stevinz 10/2022
+                float w = clamp( pow( ( accum.a * 8.0 + 0.001 ) * ( - gl_FragCoord.z * 0.99 + 1.0 ), 3.0 ) * 1000.0, 0.001, 300.0 );
+                gl_FragColor = vec4( accum.rgb, accum.a ) * w * gl_FragCoord.z;
+
+            } else if ( uRenderStage == ${ WboitStages.Revealage.toFixed( 1 ) } ) {
 
                 gl_FragColor = vec4( gl_FragColor.a );
 
             }
-
-            // -----------------
 
         }
 
@@ -205,6 +205,8 @@ class MeshWboitMaterial extends ShaderMaterial {
         // properties (no uniforms)
 
 		this.combine = MultiplyOperation;
+
+        this.transparent = true;
 
         this.wireframe = false;
 		this.wireframeLinewidth = 1;

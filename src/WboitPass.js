@@ -25,6 +25,7 @@
 //      - Hide/show processing of opaque/transparent objects
 //          - Object cache for changing visibility
 //          - Material cache for changing blend functions
+//          - Collect list of materials the first scene traverse to speed up subsequent traversals
 //
 //  Demo
 //      - Scene with texture maps
@@ -159,7 +160,7 @@ class WboitPass extends Pass {
                 let isWboitCapable = true;
 
                 for ( let i = 0; i < materials.length; i ++ ) {
-                    if ( materials[i].isMeshWboitMaterial !== true ) {
+                    if ( materials[i].isMeshWboitMaterial !== true || materials[i].transparent !== true ) {
                         isWboitCapable = false;
                         break;
                     }
@@ -182,7 +183,7 @@ class WboitPass extends Pass {
                 for ( let i = 0; i < materials.length; i ++ ) {
                     if ( materials[i].isMeshWboitMaterial !== true ) continue;
 
-                    materials[i].uniforms[ 'uRenderStage' ].value = stage.toFixed(1);
+                    materials[i].uniforms[ 'uRenderStage' ].value = stage.toFixed( 1 );
                     materials[i].depthWrite = false;
                     materials[i].depthTest = true;
                     materials[i].transparent = true;

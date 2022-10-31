@@ -65,7 +65,8 @@
                 enabled: true,
                 background: false,
                 doubleSide: true,
-                transparency: 0.75,
+                transparent: true,
+                opacity: 0.75,
             };
 
             init();
@@ -88,16 +89,12 @@
                 camera.position.z = 10;
 
                 controls = new OrbitControls( camera, renderer.domElement );
-                controls.dynamicDampingFactor = 0.3;
 
                 // materials
 
-                const transparentMaterial = new MeshWboitMaterial( {
-                    side: THREE.DoubleSide,
-                    transparent: true,
-                    vertexColors: true,
-                    opacity: 0.75,
-                } );
+                const wboitMaterial = new MeshWboitMaterial();
+
+                const coloredWboitMaterial = new MeshWboitMaterial( { vertexColors: true } );
 
                 const opaqueMaterial = new THREE.MeshBasicMaterial( {
                     side: THREE.DoubleSide,
@@ -130,7 +127,7 @@
                 opaqueRectangle2.rotation.z = Math.PI / 2;
                 opaqueRectangle2.position.z = - 0.5;
 
-                scenes[ 'Boxes' ].add( new THREE.Mesh( coloredGeometry, transparentMaterial.clone() ) );
+                scenes[ 'Boxes' ].add( new THREE.Mesh( coloredGeometry, coloredWboitMaterial ) );
                 scenes[ 'Boxes' ].add( opaqueRectangle1 );
                 scenes[ 'Boxes' ].add( opaqueRectangle2 );
 
@@ -138,7 +135,7 @@
 
                 const torusKnotGeometry = new THREE.TorusKnotGeometry( 1.5, 0.4, 100, 16 );
                 const torusPoints = torusKnotGeometry.attributes.position.count;
-                const torusColors = new Float32Array( torusPoints * 4 /* stride */, 4 );
+                const torusColors = new Float32Array( torusPoints * 4, 4 );
 
                 for ( let i = 0; i < torusPoints; i ++ ) {
 
@@ -151,7 +148,7 @@
 
                 torusKnotGeometry.setAttribute( 'color', new THREE.Float32BufferAttribute( torusColors, 4 ) );
 
-                scenes[ 'Knot' ].add( new THREE.Mesh( torusKnotGeometry, transparentMaterial.clone() ) );
+                scenes[ 'Knot' ].add( new THREE.Mesh( torusKnotGeometry, coloredWboitMaterial ) );
 
                 // scene 'Lattice'
 
@@ -162,13 +159,10 @@
 
                     const coloredBoxGeometry = boxGeometry.clone();
 
-                    const boxPoints = coloredBoxGeometry.attributes.position.count;
-                    const boxColors = new Float32Array( boxPoints * 4 /* stride */, 4 );
-                    const clr = new THREE.Color().setHSL( ( i % 2 == 0 ? numItems - i : i ) / numItems, 0.75, 0.5 );
-                    for ( let j = 0; j < boxPoints; j ++ ) boxColors.set( [ clr.r, clr.g, clr.b, 1.0 ], j * 4 );
-                    coloredBoxGeometry.setAttribute( 'color', new THREE.Float32BufferAttribute( boxColors, 4 ) );
+                    const coloredMaterial = wboitMaterial.clone();
+                    coloredMaterial.color = new THREE.Color().setHSL( ( i % 2 == 0 ? numItems - i : i ) / numItems, 0.8, 0.6 );
 
-                    const mesh = new THREE.Mesh( coloredBoxGeometry, transparentMaterial.clone() );
+                    const mesh = new THREE.Mesh( coloredBoxGeometry, coloredMaterial );
 
                     mesh.rotation.y = i * Math.PI / 2;
                     mesh.scale.y = 0.3;
@@ -183,7 +177,6 @@
                 for( let i = 0 ; i < 4 ; i ++ ){
 
                     const mesh = new THREE.Mesh( boxGeometry, opaqueMaterial );
-
                     scenes[ 'Lattice' ].add( mesh );
 
                     const angle = i / 2 * Math.PI;
@@ -200,31 +193,18 @@
                 dracoLoader.setDecoderPath( 'https://unpkg.com/three@0.146.0/examples/js/libs/draco/' );
                 loader.setDRACOLoader( dracoLoader );
 
-                let seed = 21; // 5, 7, 9, 15, 16
-
-                function seededRandom() {
-
-                    const x = Math.sin( seed ++ ) * 10000;
-                    return x - Math.floor( x );
-
-                }
-
-                loader.load( './models/ship.gltf', function ( gltf ) {
+                loader.load( './models/ship.glb', function ( gltf ) {
 
                     gltf.scene.traverse( ( object ) => {
 
-                        if ( object.geometry ) {
+                        if ( object.material ) {
 
-                            const objectPoints = object.geometry.attributes.position.count;
-                            const objectColors = new Float32Array( objectPoints * 4 /* stride */, 4 );
-                            const clr = new THREE.Color().setHex( seededRandom() * 0xffffff );
-
-                            for ( let j = 0; j < objectPoints; j ++ ) objectColors.set( [ clr.r, clr.g, clr.b, 0.50 ], j * 4 );
-                            object.geometry.setAttribute( 'color', new THREE.Float32BufferAttribute( objectColors, 4 ) );
+                            const coloredMaterial = wboitMaterial.clone();
+                            coloredMaterial.color.copy( object.material.color );
+                            object.material.dispose();
+                            object.material = coloredMaterial;
 
                         }
-
-                        if ( object.material ) object.material = transparentMaterial.clone();
 
                     } );
 
@@ -235,15 +215,7 @@
                     gltf.scene.position.y -= 2.00;
                     gltf.scene.scale.multiplyScalar( 0.85 );
 
-                }, undefined, function ( error ) {
-
-                    console.error( error );
-
-                } );
-
-                // initial scene
-
-                scene = scenes[ params.scene ];
+                }, undefined, error => console.error( error ) );
 
                 // background
 
@@ -254,25 +226,34 @@
 
                 // wboit pass
 
-                wboitPass = new WboitPass( renderer, scene, camera );
+                wboitPass = new WboitPass( renderer, scenes[ params.scene ], camera );
 
                 // gui
 
                 const gui = new GUI();
 
-                const folder1 = gui.addFolder( 'Wboit Params' );
+                const folder1 = gui.addFolder( 'Scene Params' );
 
                 folder1.add( params, 'scene', sceneTypes ).onFinishChange( updateScene );
-                folder1.add( params, 'enabled' ).onFinishChange( updateScene );
-                folder1.add( params, 'background' ).onFinishChange( updateScene );
-                folder1.add( params, 'doubleSide' ).onFinishChange( updateSceneParameters );
-                folder1.add( params, 'transparency', 0, 1 ).onFinishChange( updateSceneParameters );
+                folder1.add( params, 'background' ).onFinishChange( updateSceneParameters );
+
+                const folder2 = gui.addFolder( 'Wboit Params' );
+
+                folder2.add( params, 'enabled' ).onFinishChange( updateSceneParameters );
+                folder2.add( params, 'doubleSide' ).onFinishChange( updateSceneParameters );
+                folder2.add( params, 'transparent' ).onFinishChange( updateSceneParameters );
+                folder2.add( params, 'opacity', 0, 1 ).onFinishChange( updateSceneParameters );
 
                 // events
 
                 window.addEventListener( 'resize', onWindowResize, false );
                 controls.addEventListener( 'change', render );
                 renderer.domElement.addEventListener( 'mousemove', onMouseMove );
+
+                // initialize params
+
+                updateScene();
+                updateSceneParameters();
 
             }
 
@@ -299,8 +280,11 @@
                         for ( let i = 0; i < materials.length; i ++ ) {
 
                             materials[i].side = ( params.doubleSide ) ? THREE.DoubleSide : THREE.FrontSide;
+
                             if ( materials[i].isMeshWboitMaterial !== true ) continue;
-                            materials[i].opacity = params.transparency;
+
+                            materials[i].transparent = params.transparent;
+                            materials[i].opacity = params.opacity;
 
                         }
 
@@ -347,7 +331,7 @@
                     ( rgba[ 1 ] / 255 ).toPrecision( 2 ),
                     ( rgba[ 2 ] / 255 ).toPrecision( 2 ),
                     ( rgba[ 3 ] / 255 ).toPrecision( 2 )
-                ].join( ", " );
+                ].join( ', ' );
 
             }
 
