@@ -22,15 +22,11 @@
 /////////////////////////////////////////////////////////////////////////////////////
 //
 //  TODO:
+//      - Proper handling of 'autoClear' in pass?
 //      - Hide/show processing of opaque/transparent objects
 //          - Object cache for changing visibility
 //          - Material cache for changing blend functions
 //          - Collect list of materials the first scene traverse to speed up subsequent traversals
-//
-//  Demo
-//      - Scene with texture maps
-//      - Play with transparency more?? Algorithm?
-//          - Why doesn't opcaity = 1.0 look good?
 //
 //  Short Docs
 //
@@ -148,6 +144,8 @@ class WboitPass extends Pass {
 
     render( renderer, writeBuffer = null /* readBuffer = null, deltaTime, maskActive */ ) {
 
+        const self = this;
+
         if ( ! this.scene || ! this.scene.isScene ) return;
 
         function changeVisible( scene, opaqueVisible = true, transparentVisible = true ) {
@@ -183,7 +181,7 @@ class WboitPass extends Pass {
                 for ( let i = 0; i < materials.length; i ++ ) {
                     if ( materials[i].isMeshWboitMaterial !== true ) continue;
 
-                    materials[i].uniforms[ 'uRenderStage' ].value = stage.toFixed( 1 );
+                    materials[i].uniforms[ 'renderStage' ].value = stage.toFixed( 1 );
                     materials[i].depthWrite = false;
                     materials[i].depthTest = true;
                     materials[i].transparent = true;
@@ -196,12 +194,6 @@ class WboitPass extends Pass {
                             materials[i].blendEquation = THREE.AddEquation;
                             materials[i].blendSrc = THREE.OneFactor;
                             materials[i].blendDst = THREE.OneFactor;
-
-                            // if ( materials[i].opacity >= 1.0 ) {
-                            //     materials[i].blendDst = THREE.ZeroFactor;
-                            //     materials[i].depthWrite = true;
-                            // }
-
                             break;
 
                         case WboitStages.Revealage:
@@ -302,6 +294,10 @@ export { WboitPass };
 // Basic OIT Info:
 //      https://learnopengl.com/Guest-Articles/2020/OIT/Introduction
 //      https://en.wikipedia.org/wiki/Order-independent_transparency
+//
+// Weighted, Blended OIT:
+//      https://learnopengl.com/Guest-Articles/2020/OIT/Weighted-Blended
+//      https://therealmjp.github.io/posts/weighted-blended-oit/
 //
 // Multiple Render Targets:
 //      https://github.com/mrdoob/three.js/blob/master/examples/webgl2_multiple_rendertargets.html

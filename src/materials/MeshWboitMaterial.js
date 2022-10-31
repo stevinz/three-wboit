@@ -25,7 +25,8 @@ const WboitBasicShader = {
 
 	uniforms: UniformsUtils.merge( [
         {
-            uRenderStage: { value: 0.0 },
+            renderStage: { value: 0.0 },
+            weight: { value: 1.0 },
         },
 		UniformsLib.common,
 		UniformsLib.specularmap,
@@ -82,9 +83,12 @@ const WboitBasicShader = {
 
 	fragmentShader: /* glsl */`
 
-        uniform float uRenderStage;
+        // MeshWboitMaterial
 
-        //
+        uniform float renderStage;
+        uniform float weight;
+
+        // MeshBasicMaterial
 
         uniform vec3 diffuse;
         uniform float opacity;
@@ -158,20 +162,28 @@ const WboitBasicShader = {
 
             // wboit
 
-            if ( uRenderStage == ${ WboitStages.Acummulation.toFixed( 1 ) } ) {
+            if ( renderStage == ${ WboitStages.Acummulation.toFixed( 1 ) } ) {
 
                 vec4 accum = gl_FragColor.rgba;
-                accum.rgb *= accum.a;
+                float z = gl_FragCoord.z;
+
+                // // Scaling to Camera
+                // z = ( ( cameraNear * cameraFar ) / ( z - cameraFar ) ) / ( cameraNear - cameraFar );
 
                 // // McGuire 10/2013
-                // float w = clamp( pow( ( accum.a * 8.0 + 0.01 ) * ( - gl_FragCoord.z * 0.95 + 1.0 ), 3.0 ) * 1e3, 1e-2, 3e2 );
+                // float w = clamp( pow( ( accum.a * 8.0 + 0.01 ) * ( - z * 0.95 + 1.0 ), 3.0 ) * 1e3, 1e-2, 3e2 );
                 // gl_FragColor = vec4( accum.rgb, accum.a ) * w;
 
-                // // Stevinz 10/2022
-                float w = clamp( pow( ( accum.a * 8.0 + 0.001 ) * ( - gl_FragCoord.z * 0.99 + 1.0 ), 3.0 ) * 1000.0, 0.001, 300.0 );
-                gl_FragColor = vec4( accum.rgb, accum.a ) * w * gl_FragCoord.z;
+                // // Equation #9
+                // float w = accum.a * clamp( 0.03 / ( 1e-5 + pow( abs( z ) / 200.0, 4.0 ) ), 0.01, 300.0 );
 
-            } else if ( uRenderStage == ${ WboitStages.Revealage.toFixed( 1 ) } ) {
+                // // Stevinz 10/2022
+                float scaleWeight = 0.7 + ( 0.3 * weight );
+                float w = clamp( pow( ( accum.a * 8.0 + 0.001 ) * ( - z * scaleWeight + 1.0 ), 3.0 ) * 1000.0, 0.001, 300.0 );
+
+                gl_FragColor = vec4( accum.rgb * accum.a, accum.a ) * w;
+
+            } else if ( renderStage == ${ WboitStages.Revealage.toFixed( 1 ) } ) {
 
                 gl_FragColor = vec4( gl_FragColor.a );
 
@@ -238,6 +250,10 @@ class MeshWboitMaterial extends ShaderMaterial {
             'reflectivity',
             'refractionRatio',
 
+            // MeshWboitMaterial,
+
+            'weight',
+
 		];
 
 		for ( const propertyName of exposePropertyNames ) {
@@ -261,6 +277,8 @@ class MeshWboitMaterial extends ShaderMaterial {
     copy( source ) {
 
 		super.copy( source );
+
+        // MeshBasicMaterial
 
 		this.color.copy( source.color );
 
@@ -288,9 +306,9 @@ class MeshWboitMaterial extends ShaderMaterial {
 
 		this.fog = source.fog;
 
-        //
+        // MeshWboitMaterial
 
-        this.stage = source.stage;
+        this.weight = source.weight;
 
 		return this;
 

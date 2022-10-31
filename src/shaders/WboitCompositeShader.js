@@ -37,10 +37,19 @@ const WboitCompositeShader = {
         uniform sampler2D tAccumulation;
         uniform sampler2D tRevealage;
 
+        float EPSILON = 0.00001;
+
+        bool fuzzyEqual( float a, float b ) {
+            return abs( a - b ) <= ( abs( a ) < abs( b ) ? abs( b ) : abs( a ) ) * EPSILON;
+        }
+
         void main() {
 
-            vec4 accum = texture2D( tAccumulation, vUv );
             float reveal = texture2D( tRevealage, vUv ).r;
+            if ( fuzzyEqual( reveal, 1.0 ) ) discard;
+
+            vec4 accum = texture2D( tAccumulation, vUv );
+
             vec4 composite = vec4( accum.rgb / clamp( accum.a, 0.0001, 50000.0 ), reveal );
             gl_FragColor = clamp( composite, 0.01, 300.0 );
 
