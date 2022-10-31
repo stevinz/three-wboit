@@ -4,7 +4,7 @@
 // @about       Reimplementation of MeshBasicMaterial for use with transparent Meshes rendered with WboitPass
 // @author      Stephens Nunnally <@stevinz>
 // @license     MIT - Copyright (c) 2022 Stephens Nunnally and Scidian Software
-// @source      https://github.com/stevinz/three-oit
+// @source      https://github.com/stevinz/three-wboit
 //
 ///////////////////////////////////////////////////////////////////////////////////*/
 

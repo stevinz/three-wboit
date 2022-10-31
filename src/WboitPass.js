@@ -4,7 +4,7 @@
 // @about       Weighted, blended order-independent transparency renderer for use with three.js WebGLRenderer
 // @author      Stephens Nunnally <@stevinz>
 // @license     MIT - Copyright (c) 2022 Stephens Nunnally and Scidian Software
-// @source      https://github.com/stevinz/three-oit
+// @source      https://github.com/stevinz/three-wboit
 //
 //      See end of file for license details and acknowledgements
 //
@@ -362,7 +362,7 @@ export { WboitPass };
 //
 // MIT License
 //
-// three-oit
+// three-wboit
 //      Copyright (c) 2022 Stephens Nunnally <@stevinz>
 //
 // Some Portions

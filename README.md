@@ -1,12 +1,12 @@
-# Three Oit
+# Three Wboit
 
 An implementation of Weighted, Blended Order Independent Transparency ([paper](http://jcgt.org/published/0002/02/09/), [blog](http://casual-effects.blogspot.com/2015/03/implemented-weighted-blended-order.html)) for use with [three.js](https://threejs.org/). This implementation is designed as a rendering [Pass](https://github.com/mrdoob/three.js/blob/dev/examples/jsm/postprocessing/Pass.js). It can be used as a stand-alone replacement for `renderer.render()`, or used as part of a larger rendering stack with [Effect Composer](https://github.com/mrdoob/three.js/blob/dev/examples/jsm/postprocessing/EffectComposer.js).
 
-There are several techniques available for order independent transparency, but this. This implementation is WebGL 1 compatible and mobile friendly.
+There are sveral common techniques available for [order independent transparency](https://learnopengl.com/Guest-Articles/2020/OIT/Introduction). This implementation uses Wboit for it's high performance and compatibility on slower hardware. This implementation is both WebGL 1 compatible and mobile friendly.
 
 ## Examples
 
-- <a href='https://stevinz.github.io/three-oit/WeightedBlended.html'>Transparent Scene Demos</a>
+- <a href='https://stevinz.github.io/three-wboit/WeightedBlended.html'>Transparent Scene Demos</a>
 
 ## Background
 
@@ -26,17 +26,17 @@ import { MeshWboitMaterial } from './materials/MeshWboitMaterial.js';
 import { WboitPass } from './WboitPass.js';
 ```
 
-- Option 2: Install from [npm](https://www.npmjs.com/package/three-oit), import from 'three-oit'...
+- Option 2: Install from [npm](https://www.npmjs.com/package/three-wboit), import from 'three-wboit'...
 ```
-npm install three-oit
+npm install three-wboit
 ```
 ```javascript
-import { MeshWboitMaterial, WboitPass } from 'three-oit';
+import { MeshWboitMaterial, WboitPass } from 'three-wboit';
 ```
 
 - Option 3: Import directly from CDN...
 ```javascript
-import { MeshWboitMaterial, WboitPass } from 'https://unpkg.com/three-oit/build/index.module.js';
+import { MeshWboitMaterial, WboitPass } from 'https://unpkg.com/three-wboit/build/index.module.js';
 ```
 
 ## Usage
