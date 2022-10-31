@@ -167,25 +167,22 @@ const WboitBasicShader = {
                 vec4 accum = gl_FragColor.rgba;
                 float z = gl_FragCoord.z;
 
-                // // Scaling to Camera
-                // z = ( ( cameraNear * cameraFar ) / ( z - cameraFar ) ) / ( cameraNear - cameraFar );
-
                 // // McGuire 10/2013
                 // float w = clamp( pow( ( accum.a * 8.0 + 0.01 ) * ( - z * 0.95 + 1.0 ), 3.0 ) * 1e3, 1e-2, 3e2 );
                 // gl_FragColor = vec4( accum.rgb, accum.a ) * w;
 
                 // // Equation #9
                 // float w = accum.a * clamp( 0.03 / ( 1e-5 + pow( abs( z ) / 200.0, 4.0 ) ), 0.01, 300.0 );
+                // gl_FragColor = vec4( accum.rgb * accum.a, accum.a ) * w;
 
                 // // Stevinz 10/2022
                 float scaleWeight = 0.7 + ( 0.3 * weight );
                 float w = clamp( pow( ( accum.a * 8.0 + 0.001 ) * ( - z * scaleWeight + 1.0 ), 3.0 ) * 1000.0, 0.001, 300.0 );
-
                 gl_FragColor = vec4( accum.rgb * accum.a, accum.a ) * w;
 
             } else if ( renderStage == ${ WboitStages.Revealage.toFixed( 1 ) } ) {
 
-                gl_FragColor = vec4( gl_FragColor.a );
+                gl_FragColor = vec4( gl_FragColor.a * gl_FragCoord.z );
 
             }
 

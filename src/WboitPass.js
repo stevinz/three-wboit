@@ -179,7 +179,7 @@ class WboitPass extends Pass {
                 let materials = Array.isArray( object.material ) ? object.material : [ object.material ];
 
                 for ( let i = 0; i < materials.length; i ++ ) {
-                    if ( materials[i].isMeshWboitMaterial !== true ) continue;
+                    if ( materials[i].isMeshWboitMaterial !== true || materials[i].transparent !== true ) continue;
 
                     materials[i].uniforms[ 'renderStage' ].value = stage.toFixed( 1 );
                     materials[i].depthWrite = false;

@@ -86,7 +86,7 @@
                     return console.error( 'No OES_texture_float support for float textures!' );
                 }
 
-                camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 0.1, 500 );
+                camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 0.10, 100 );
                 camera.position.z = 10;
 
                 controls = new OrbitControls( camera, renderer.domElement );
@@ -106,10 +106,12 @@
 
                 // scene 'Boxes'
 
+                const z = 3;
+
                 const coloredVertices = new Float32Array( [
                       1,   1,   0, - 1,   1,   0, - 1, - 1,   0,  1,   1,   0, - 1, - 1,   0,  1, - 1,   0, // center
-                      0,   0, - 1, - 2,   0, - 1, - 2, - 2, - 1,  0,   0, - 1, - 2, - 2, - 1,  0, - 2, - 1, // back
-                      2,   2,   1,   0,   2,   1,   0,   0,   1,  2,   2,   1,   0,   0,   1,  2,   0,   1, // front
+                      0,   0, - z, - 2,   0, - z, - 2, - 2, - z,  0,   0, - z, - 2, - 2, - z,  0, - 2, - z, // back
+                      2,   2,   z,   0,   2,   z,   0,   0,   z,  2,   2,   z,   0,   0,   z,  2,   0,   z, // front
                 ] );
 
                 const coloredGeometry = new THREE.BufferGeometry();
@@ -220,6 +222,8 @@
 
                 // scene 'Spheres'
 
+                scenes[ 'Spheres' ].add( new THREE.Mesh( new THREE.CylinderGeometry( 0.25, 0.25, 6.0 ), opaqueMaterial ) );
+
                 const totalSpheres = 32;
                 const spheresInRow = 8;
 
@@ -228,11 +232,11 @@
 
                 for ( let i = 0; i < totalSpheres; i ++ ) {
 
-                    let angle = 2 * Math.PI * (i % spheresInRow) / spheresInRow;
+                    const angle = 2 * Math.PI * (i % spheresInRow) / spheresInRow;
 
-                    let x = Math.sin( angle ) * 1.5;
-                    let y = Math.floor( i / spheresInRow ) / ( spheresInRow / 8 ) - 1.5;
-                    let z = Math.cos( angle ) * 1.5;
+                    const x = Math.sin( angle ) * 1.5;
+                    const y = Math.floor( i / spheresInRow ) / ( spheresInRow / 8 ) - 1.5;
+                    const z = Math.cos( angle ) * 1.5;
 
                     const coloredMaterial = wboitMaterial.clone();
                     coloredMaterial.color.setHex( Math.random() * 0xffffff );
