@@ -20,19 +20,6 @@
 //      https://github.com/mrdoob/three.js/pull/24227
 //
 /////////////////////////////////////////////////////////////////////////////////////
-//
-//  TODO:
-//      - Proper handling of 'autoClear' in pass?
-//      - Hide/show processing of opaque/transparent objects
-//          - Object cache for changing visibility
-//          - Material cache for changing blend functions
-//          - Collect list of materials the first scene traverse to speed up subsequent traversals
-//
-//  Short Docs
-//
-//  NPM
-//
-/////////////////////////////////////////////////////////////////////////////////////
 
 import * as THREE from 'three';
 
@@ -71,6 +58,9 @@ class WboitPass extends Pass {
         // Internal
 
 		this._oldClearColor = new THREE.Color();
+        this._depthTestCache = new Map();
+        this._depthWriteCache = new Map();
+        this._visibilityCache = new Map();
 
         // Render Targets
 
@@ -144,11 +134,17 @@ class WboitPass extends Pass {
 
     render( renderer, writeBuffer = null /* readBuffer = null, deltaTime, maskActive */ ) {
 
-        const self = this;
+        const scene = this.scene;
+        if ( ! scene || ! scene.isScene ) return;
 
-        if ( ! this.scene || ! this.scene.isScene ) return;
+        const cache = this._visibilityCache;
+        const testCache = this._depthTestCache;
+        const writeCache = this._depthWriteCache;
 
-        function changeVisible( scene, opaqueVisible = true, transparentVisible = true ) {
+        const opaqueMeshes = [];
+        const transparentMeshes = [];
+
+        function gatherMeshes() {
 
             scene.traverse( ( object ) => {
 
@@ -164,36 +160,53 @@ class WboitPass extends Pass {
                     }
                 }
 
-                object.visible = ( isWboitCapable ) ? transparentVisible : opaqueVisible;
+                if ( ! isWboitCapable ) {
+                    opaqueMeshes.push( object );
+                } else {
+                    transparentMeshes.push( object );
+                }
+
+                cache.set( object, object.visible );
 
             } );
 
         }
 
-        function prepareWboitBlending( scene, stage ) {
+        function changeVisible( opaqueVisible = true, transparentVisible = true ) {
 
-            scene.traverse( ( object ) => {
+            opaqueMeshes.forEach( mesh => mesh.visible = opaqueVisible );
+            transparentMeshes.forEach( mesh => mesh.visible = transparentVisible );
 
-                if ( ! object.material ) return;
+        }
 
-                let materials = Array.isArray( object.material ) ? object.material : [ object.material ];
+        function resetVisible() {
+
+            for ( const [ key, value ] of cache ) key.visible = value;
+
+        }
+
+        function prepareWboitBlending( stage ) {
+
+            transparentMeshes.forEach( ( mesh ) => {
+
+                const materials = Array.isArray( mesh.material ) ? mesh.material : [ mesh.material ];
 
                 for ( let i = 0; i < materials.length; i ++ ) {
                     if ( materials[i].isMeshWboitMaterial !== true || materials[i].transparent !== true ) continue;
 
                     materials[i].uniforms[ 'renderStage' ].value = stage.toFixed( 1 );
-                    materials[i].depthWrite = false;
-                    materials[i].depthTest = true;
-                    materials[i].transparent = true;
 
                     switch ( stage ) {
 
                         case WboitStages.Acummulation:
-
+                            testCache.set( materials[i], materials[i].depthTest );
+                            writeCache.set( materials[i], materials[i].depthWrite );
                             materials[i].blending = THREE.CustomBlending;
                             materials[i].blendEquation = THREE.AddEquation;
                             materials[i].blendSrc = THREE.OneFactor;
                             materials[i].blendDst = THREE.OneFactor;
+                            materials[i].depthWrite = false;
+                            materials[i].depthTest = true;
                             break;
 
                         case WboitStages.Revealage:
@@ -202,16 +215,17 @@ class WboitPass extends Pass {
                             materials[i].blendEquation = THREE.AddEquation;
                             materials[i].blendSrc = THREE.ZeroFactor;
                             materials[i].blendDst = THREE.OneMinusSrcAlphaFactor;
+                            materials[i].depthWrite = false;
+                            materials[i].depthTest = true;
                             break;
 
                         default:
-
                             materials[i].blending = THREE.NormalBlending;
                             materials[i].blendEquation = THREE.AddEquation
                             materials[i].blendSrc = THREE.SrcAlphaFactor;
                             materials[i].blendDst = THREE.OneMinusSrcAlphaFactor;
-                            materials[i].depthWrite = true;
-                            materials[i].depthTest = true;
+                            materials[i].depthWrite = testCache.get( materials[i] );
+                            materials[i].depthTest = writeCache.get( materials[i] );
 
                     }
 
@@ -225,18 +239,21 @@ class WboitPass extends Pass {
         const oldAutoClear = renderer.autoClear;;
         const oldClearAlpha = renderer.getClearAlpha();
         const oldRenderTarget = renderer.getRenderTarget();
-        const oldOverrideMaterial = this.scene.overrideMaterial;
+        const oldOverrideMaterial = scene.overrideMaterial;
         renderer.autoClear = false;
         renderer.getClearColor( this._oldClearColor );
-        this.scene.overrideMaterial = null;
+        scene.overrideMaterial = null;
+
+        // Gather Opaque / Transparent Meshes
+        gatherMeshes();
 
         // Render Opaque Objects
-        changeVisible( this.scene, true, false );
+        changeVisible( true, false );
         renderer.setRenderTarget( this.baseTarget );
         renderer.setClearColor( _clearColorZero, 0.0 );
         renderer.clear();
-        renderer.render( this.scene, this.camera );
-        changeVisible( this.scene, false, true );
+        renderer.render( scene, this.camera );
+        changeVisible( false, true );
 
         // Copy Opaque Render to Write Buffer (so we can re-use depth buffer)
         if ( this.clearColor ) {
@@ -247,36 +264,40 @@ class WboitPass extends Pass {
         this.blendPass.render( renderer, writeBuffer, this.baseTarget );
 
         // Render Transparent Objects, Accumulation Pass
-        prepareWboitBlending( this.scene, WboitStages.Acummulation );
+        prepareWboitBlending( WboitStages.Acummulation );
         renderer.setRenderTarget( this.baseTarget );
         renderer.setClearColor( _clearColorZero, 0.0 );
         renderer.clearColor();
-        renderer.render( this.scene, this.camera );
+        renderer.render( scene, this.camera );
 
         // Copy Accumulation Render to temp target (so we can re-use depth buffer)
         this.copyPass.render( renderer, this.accumulationTarget, this.baseTarget );
 
         // Render Transparent Objects, Revealage Pass
-        prepareWboitBlending( this.scene, WboitStages.Revealage );
+        prepareWboitBlending( WboitStages.Revealage );
         renderer.setRenderTarget( this.baseTarget );
         renderer.setClearColor( _clearColorOne, 1.0 );
         renderer.clearColor();
-        renderer.render( this.scene, this.camera );
+        renderer.render( scene, this.camera );
 
         // Composite Transparent Objects
         renderer.setRenderTarget( writeBuffer );
         this.compositePass.uniforms[ 'tAccumulation' ].value = this.accumulationTarget.texture;
-        this.compositePass.uniforms[ 'tRevealage' ].value = this.baseTarget.texture; // now holds revealage render
+        this.compositePass.uniforms[ 'tRevealage' ].value = this.baseTarget.texture; /* now holds revealage render */
         this.compositePass.render( renderer, writeBuffer );
 
         // Restore Original State
-        prepareWboitBlending( this.scene, WboitStages.Normal );
-        changeVisible( this.scene, true, true );
+        prepareWboitBlending( WboitStages.Normal );
+        resetVisible();
         renderer.setRenderTarget( oldRenderTarget );
         renderer.setClearColor( this._oldClearColor, oldClearAlpha );
-        this.scene.overrideMaterial = oldOverrideMaterial;
+        scene.overrideMaterial = oldOverrideMaterial;
         renderer.autoClear = oldAutoClear;
 
+        // Clear Caches
+        cache.clear();
+        testCache.clear();
+        writeCache.clear();
     }
 
 }
