@@ -1,6 +1,8 @@
 # Three Wboit
 
-An implementation of Weighted, Blended Order Independent Transparency ([paper](http://jcgt.org/published/0002/02/09/), [blog](http://casual-effects.blogspot.com/2015/03/implemented-weighted-blended-order.html)) for use with [three.js](https://threejs.org/). This implementation is designed as a rendering [Pass](https://github.com/mrdoob/three.js/blob/dev/examples/jsm/postprocessing/Pass.js). It can be used as a stand-alone replacement for `renderer.render()`, or used as part of a larger rendering stack with [Effect Composer](https://github.com/mrdoob/three.js/blob/dev/examples/jsm/postprocessing/EffectComposer.js).
+Weighted, Blended Order Independent Transparency ([paper](http://jcgt.org/published/0002/02/09/), [blog](http://casual-effects.blogspot.com/2015/03/implemented-weighted-blended-order.html)) for use with [three.js](https://threejs.org/). This implementation is designed as a rendering [Pass](https://github.com/mrdoob/three.js/blob/dev/examples/jsm/postprocessing/Pass.js). It can be used as a stand-alone replacement for a traditional render pass (i.e. `renderer.render()`), or used as part of a larger rendering stack within [Effect Composer](https://github.com/mrdoob/three.js/blob/dev/examples/jsm/postprocessing/EffectComposer.js).
+
+## More Info
 
 There are sveral common techniques available for [order independent transparency](https://learnopengl.com/Guest-Articles/2020/OIT/Introduction). This implementation uses WBOIT for it's high performance and compatibility on slower hardware. This implementation is both WebGL 1 compatible and mobile friendly.
 
