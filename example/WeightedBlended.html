@@ -49,12 +49,12 @@
             import { TexturePass } from 'three/addons/postprocessing/TexturePass.js';
 
             // // NPM
-            import { MeshWboitMaterial } from 'three-wboit';
-            import { WboitPass } from 'three-wboit';
+            // import { MeshWboitMaterial } from 'three-wboit';
+            // import { WboitPass } from 'three-wboit';
 
             // // Local
-            // import { MeshWboitMaterial } from '../src/materials/MeshWboitMaterial.js';
-            // import { WboitPass } from '../src/WboitPass.js';
+            import { MeshWboitMaterial } from '../src/materials/MeshWboitMaterial.js';
+            import { WboitPass } from '../src/WboitPass.js';
 
             let scene, camera, controls, renderer, texturePass, wboitPass;
 
@@ -127,12 +127,12 @@
 
                 const opaqueRectangle1 = new THREE.Mesh( new THREE.PlaneGeometry( 0.7, 1.4 ), opaqueMaterial );
                 opaqueRectangle1.position.y = 0.5;
-                opaqueRectangle1.position.z = 0.5;
+                opaqueRectangle1.position.z = z / 2.0;
 
                 const opaqueRectangle2 = new THREE.Mesh( new THREE.PlaneGeometry( 0.7, 1.4 ), opaqueMaterial );
                 opaqueRectangle2.position.x = - 1.0;
                 opaqueRectangle2.rotation.z = Math.PI / 2;
-                opaqueRectangle2.position.z = - 0.5;
+                opaqueRectangle2.position.z = - z / 2.0;
 
                 scenes[ 'Boxes' ].add( new THREE.Mesh( coloredGeometry, coloredWboitMaterial ) );
                 scenes[ 'Boxes' ].add( opaqueRectangle1 );

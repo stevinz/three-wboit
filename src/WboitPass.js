@@ -28,6 +28,7 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 
 import { CopyShader } from 'three/addons/shaders/CopyShader.js';
 import { WboitCompositeShader } from './shaders/WboitCompositeShader.js';
+import { WboitTestShader } from './shaders/WboitTestShader.js';
 import { WboitStages } from './materials/MeshWboitMaterial.js';
 
 const _clearColorZero = new THREE.Color( 0.0, 0.0, 0.0 );
@@ -62,58 +63,6 @@ class WboitPass extends Pass {
         this._depthWriteCache = new Map();
         this._visibilityCache = new Map();
 
-        // Render Target Type
-
-        const size = renderer.getSize( new THREE.Vector2() );
-        const pixelRatio = renderer.getPixelRatio();
-        const effectiveWidth = size.width * pixelRatio;
-        const effectiveHeight = size.height * pixelRatio;
-
-        const gl = renderer.getContext();
-        const currentTarget = renderer.getRenderTarget();
-
-        const targetTypes = [ THREE.FloatType, THREE.HalfFloatType, THREE.UnsignedIntType, THREE.UnsignedByteType ]
-
-        let targetType;
-
-        for ( let i = 0; i < targetTypes.length; i ++ ) {
-
-            const testTarget = new THREE.WebGLRenderTarget( 1, 1, { type: targetTypes[ i ] } );
-
-            renderer.setRenderTarget( testTarget );
-
-            if ( gl.checkFramebufferStatus( gl.FRAMEBUFFER ) === gl.FRAMEBUFFER_COMPLETE ) {
-                targetType = targetTypes[ i ];
-                testTarget.dispose();
-                break;
-            }
-
-            testTarget.dispose();
-
-        }
-
-        renderer.setRenderTarget( currentTarget );
-
-        // Render Targets
-
-        this.baseTarget = new THREE.WebGLRenderTarget( effectiveWidth, effectiveHeight, {
-            minFilter: THREE.NearestFilter,
-            magFilter: THREE.NearestFilter,
-            type: targetType,
-            format: THREE.RGBAFormat,
-            stencilBuffer: false,
-            depthBuffer: true,
-        } );
-
-        this.accumulationTarget = new THREE.WebGLRenderTarget( effectiveWidth, effectiveHeight, {
-            minFilter: THREE.NearestFilter,
-            magFilter: THREE.NearestFilter,
-            type: targetType,
-            format: THREE.RGBAFormat,
-            stencilBuffer: false,
-            depthBuffer: false,
-        } );
-
         // Passes
 
         this.blendPass = new ShaderPass( CopyShader );
@@ -139,16 +88,98 @@ class WboitPass extends Pass {
         this.compositePass.material.blendSrc = THREE.OneMinusSrcAlphaFactor;
         this.compositePass.material.blendDst = THREE.SrcAlphaFactor;
 
+        this.testPass = new ShaderPass( WboitTestShader );
+        this.testPass.material.blending = THREE.CustomBlending;
+        this.testPass.material.blendEquation = THREE.AddEquation;
+        this.testPass.material.blendSrc = THREE.OneFactor;
+        this.testPass.material.blendDst = THREE.ZeroFactor;
+
+        // Find Best Render Target Type
+
+        const size = renderer.getSize( new THREE.Vector2() );
+        const pixelRatio = renderer.getPixelRatio();
+        const effectiveWidth = size.width * pixelRatio;
+        const effectiveHeight = size.height * pixelRatio;
+
+        const gl = renderer.getContext();
+
+        const oldTarget = renderer.getRenderTarget();
+        const oldClearAlpha = renderer.getClearAlpha();
+        renderer.getClearColor( this._oldClearColor );
+
+        const targetTypes = [ THREE.FloatType, THREE.HalfFloatType, THREE.UnsignedIntType, THREE.UnsignedByteType ];
+        const targetGlTypes = [ gl.FLOAT, gl.HALF_FLOAT, gl.UNSIGNED_INT, gl.UNSIGNED_BYTE ];
+        const targetBuffers = [ new Float32Array( 4 ), new Float32Array( 4 ), new Uint32Array( 4 ), new Uint8Array( 4 ) ];
+        const targetDivisor = [ 1, 1, 255, 255 ];
+
+        let targetType;
+
+        for ( let i = 0; i < targetTypes.length; i ++ ) {
+
+            const testTarget = new THREE.WebGLRenderTarget( 8, 8, {
+                minFilter: THREE.NearestFilter,
+                magFilter: THREE.NearestFilter,
+                type: targetTypes[ i ],
+                format: THREE.RGBAFormat,
+                stencilBuffer: false,
+                depthBuffer: true,
+            } );
+
+            this.testPass.render( renderer, testTarget );
+
+            gl.readPixels( 0, 0, 1, 1, gl.RGBA, targetGlTypes[ i ], targetBuffers[ i ] );
+            const rgba = Array.apply( [], targetBuffers[ i ] );
+            rgba[ 0 ] /= targetDivisor[ i ];
+            rgba[ 1 ] /= targetDivisor[ i ];
+            rgba[ 2 ] /= targetDivisor[ i ];
+            rgba[ 3 ] /= targetDivisor[ i ];
+
+            if ( gl.checkFramebufferStatus( gl.FRAMEBUFFER ) === gl.FRAMEBUFFER_COMPLETE &&
+                rgba[ 0 ] === 1 && rgba[ 1 ] === 1 && rgba[ 2 ] === 1 && rgba[ 3 ] === 1 ) {
+                targetType = targetTypes[ i ];
+                testTarget.dispose();
+                console.log( `Framebuffer Type: ${ i }` );
+                break;
+            }
+
+            testTarget.dispose();
+
+        }
+
+        renderer.setRenderTarget( oldTarget );
+        renderer.setClearColor( this._oldClearColor, oldClearAlpha );
+
+        // Render Targets
+
+        this.baseTarget = new THREE.WebGLRenderTarget( effectiveWidth, effectiveHeight, {
+            minFilter: THREE.NearestFilter,
+            magFilter: THREE.NearestFilter,
+            type: targetType,
+            format: THREE.RGBAFormat,
+            stencilBuffer: false,
+            depthBuffer: true,
+        } );
+
+        this.accumulationTarget = new THREE.WebGLRenderTarget( effectiveWidth, effectiveHeight, {
+            minFilter: THREE.NearestFilter,
+            magFilter: THREE.NearestFilter,
+            type: targetType,
+            format: THREE.RGBAFormat,
+            stencilBuffer: false,
+            depthBuffer: false,
+        } );
+
     }
 
     dispose() {
 
-        this.baseTarget.dispose();
-        this.accumulationTarget.dispose();
-
         this.blendPass.dispose();
         this.copyPass.dispose();
         this.compositePass.dispose();
+        this.testPass.dispose();
+
+        this.baseTarget.dispose();
+        this.accumulationTarget.dispose();
 
     }
 
