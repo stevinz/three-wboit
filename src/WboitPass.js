@@ -78,12 +78,12 @@ class WboitPass extends Pass {
 
         for ( let i = 0; i < targetTypes.length; i ++ ) {
 
-            const testTarget = new THREE.WebGLRenderTarget( 1, 1, { type: targetTypes[i] } );
+            const testTarget = new THREE.WebGLRenderTarget( 1, 1, { type: targetTypes[ i ] } );
 
             renderer.setRenderTarget( testTarget );
 
             if ( gl.checkFramebufferStatus( gl.FRAMEBUFFER ) === gl.FRAMEBUFFER_COMPLETE ) {
-                targetType = targetTypes[i];
+                targetType = targetTypes[ i ];
                 testTarget.dispose();
                 break;
             }

@@ -453,7 +453,7 @@
             this._depthWriteCache = new Map();
             this._visibilityCache = new Map();
 
-            // Render Targets
+            // Render Target Type
 
             const size = renderer.getSize( new THREE__namespace.Vector2() );
             const pixelRatio = renderer.getPixelRatio();
@@ -461,15 +461,31 @@
             const effectiveHeight = size.height * pixelRatio;
 
             const gl = renderer.getContext();
+            const currentTarget = renderer.getRenderTarget();
 
-            let targetType = THREE__namespace.FloatType;
+            const targetTypes = [ THREE__namespace.FloatType, THREE__namespace.HalfFloatType, THREE__namespace.UnsignedIntType, THREE__namespace.UnsignedByteType ];
 
-            if ( ( ! renderer.capabilities.isWebGL2 && ! gl.getExtension( 'OES_texture_float' ) ) || ! gl.getExtension( 'EXT_color_buffer_float' ) ) {
+            let targetType;
 
-                console.warn( 'No support for rendering to float textures!' );
-                targetType = THREE__namespace.UnsignedByteType;
+            for ( let i = 0; i < targetTypes.length; i ++ ) {
+
+                const testTarget = new THREE__namespace.WebGLRenderTarget( 1, 1, { type: targetTypes[ i ] } );
+
+                renderer.setRenderTarget( testTarget );
+
+                if ( gl.checkFramebufferStatus( gl.FRAMEBUFFER ) === gl.FRAMEBUFFER_COMPLETE ) {
+                    targetType = targetTypes[ i ];
+                    testTarget.dispose();
+                    break;
+                }
+
+                testTarget.dispose();
 
             }
+
+            renderer.setRenderTarget( currentTarget );
+
+            // Render Targets
 
             this.baseTarget = new THREE__namespace.WebGLRenderTarget( effectiveWidth, effectiveHeight, {
                 minFilter: THREE__namespace.NearestFilter,
