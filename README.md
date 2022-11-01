@@ -73,9 +73,9 @@ render() {
 ## Acknowledgements
 
 - Weighted, Blended Order-Independent Transparency by Morgan McGuire and Louis Bavoil - [Paper](http://jcgt.org/published/0002/02/09/)
-- WebGL 2 Example by Tarek Sherif <@tsherif> - [Repo](https://github.com/tsherif/webgl2examples/blob/master/oit.html)
-- Depth Peel Three.js Example by Dusan Bosnjak <@pailhead> - [Pull](https://github.com/mrdoob/three.js/pull/15490)
-- Weighted, Blended Example Three.js Example by Alexander Rose <@arose> - [Issue](https://github.com/mrdoob/three.js/issues/4814)
+- Weighted, Blended WebGL 2 Example by Tarek Sherif [@tsherif](https://github.com/tsherif) - [Repo](https://github.com/tsherif/webgl2examples/blob/master/oit.html)
+- Weighted, Blended Three.js Example by Alexander Rose [@arose](https://github.com/arose) - [Issue](https://github.com/mrdoob/three.js/issues/4814)
+- Depth Peel Three.js Example by Dusan Bosnjak [@pailhead](https://github.com/pailhead) - [Pull](https://github.com/mrdoob/three.js/pull/15490)
 
 ## License
 
