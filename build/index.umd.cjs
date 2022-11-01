@@ -1,8 +1,8 @@
 (function (global, factory) {
-    typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('three'), require('three/addons/postprocessing/Pass.js'), require('three/addons/postprocessing/ShaderPass.js'), require('three/addons/shaders/CopyShader.js')) :
-    typeof define === 'function' && define.amd ? define(['exports', 'three', 'three/addons/postprocessing/Pass.js', 'three/addons/postprocessing/ShaderPass.js', 'three/addons/shaders/CopyShader.js'], factory) :
-    (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.THREE = global["three-wboit"] || {}, global.THREE, global.THREE, global.THREE, global.THREE));
-})(this, (function (exports, THREE, Pass_js, ShaderPass_js, CopyShader_js) { 'use strict';
+    typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('three'), require('three/addons/postprocessing/Pass.js'), require('three/addons/postprocessing/ShaderPass.js'), require('three/addons/shaders/BasicShader.js'), require('three/addons/shaders/CopyShader.js')) :
+    typeof define === 'function' && define.amd ? define(['exports', 'three', 'three/addons/postprocessing/Pass.js', 'three/addons/postprocessing/ShaderPass.js', 'three/addons/shaders/BasicShader.js', 'three/addons/shaders/CopyShader.js'], factory) :
+    (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.THREE = global["three-wboit"] || {}, global.THREE, global.THREE, global.THREE, global.THREE, global.THREE));
+})(this, (function (exports, THREE, Pass_js, ShaderPass_js, BasicShader_js, CopyShader_js) { 'use strict';
 
     function _interopNamespaceDefault(e) {
         var n = Object.create(null);
@@ -411,47 +411,6 @@
 
     /** /////////////////////////////////////////////////////////////////////////////////
     //
-    // @description WboitCompositeShader
-    // @about       Full-screen composite shader for WBOIT for use with WboitPass
-    // @author      Stephens Nunnally <@stevinz>
-    // @license     MIT - Copyright (c) 2022 Stephens Nunnally and Scidian Software
-    // @source      https://github.com/stevinz/three-wboit
-    //
-    ///////////////////////////////////////////////////////////////////////////////////*/
-
-    const WboitTestShader = {
-
-    	uniforms: {},
-
-    	vertexShader: /* glsl */`
-
-        varying vec2 vUv;
-
-        void main() {
-
-            vUv = uv;
-            gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
-
-        }
-
-    `,
-
-    	fragmentShader: /* glsl */`
-
-        varying vec2 vUv;
-
-        void main() {
-
-            gl_FragColor = vec4( 1.0, 1.0, 1.0, 1.0 );
-
-        }
-
-    `,
-
-    };
-
-    /** /////////////////////////////////////////////////////////////////////////////////
-    //
     // @description WboitRenderer
     // @about       Weighted, blended order-independent transparency renderer for use with three.js WebGLRenderer
     // @author      Stephens Nunnally <@stevinz>
@@ -519,11 +478,11 @@
             this.compositePass.material.blendSrc = THREE__namespace.OneMinusSrcAlphaFactor;
             this.compositePass.material.blendDst = THREE__namespace.SrcAlphaFactor;
 
-            this.testPass = new ShaderPass_js.ShaderPass( WboitTestShader );
-            this.testPass.material.blending = THREE__namespace.CustomBlending;
-            this.testPass.material.blendEquation = THREE__namespace.AddEquation;
-            this.testPass.material.blendSrc = THREE__namespace.OneFactor;
-            this.testPass.material.blendDst = THREE__namespace.ZeroFactor;
+            const testPass = new ShaderPass_js.ShaderPass( BasicShader_js.BasicShader );
+            testPass.material.blending = THREE__namespace.CustomBlending;
+            testPass.material.blendEquation = THREE__namespace.AddEquation;
+            testPass.material.blendSrc = THREE__namespace.OneFactor;
+            testPass.material.blendDst = THREE__namespace.ZeroFactor;
 
             // Find Best Render Target Type
 
@@ -547,7 +506,7 @@
 
             for ( let i = 0; i < targetTypes.length; i ++ ) {
 
-                const testTarget = new THREE__namespace.WebGLRenderTarget( 8, 8, {
+                const testTarget = new THREE__namespace.WebGLRenderTarget( 1, 1, {
                     minFilter: THREE__namespace.NearestFilter,
                     magFilter: THREE__namespace.NearestFilter,
                     type: targetTypes[ i ],
@@ -556,7 +515,7 @@
                     depthBuffer: true,
                 } );
 
-                this.testPass.render( renderer, testTarget );
+                testPass.render( renderer, testTarget );
 
                 gl.readPixels( 0, 0, 1, 1, gl.RGBA, targetGlTypes[ i ], targetBuffers[ i ] );
                 const rgba = Array.apply( [], targetBuffers[ i ] );
@@ -565,17 +524,22 @@
                 rgba[ 2 ] /= targetDivisor[ i ];
                 rgba[ 3 ] /= targetDivisor[ i ];
 
-                if ( gl.checkFramebufferStatus( gl.FRAMEBUFFER ) === gl.FRAMEBUFFER_COMPLETE &&
-                    rgba[ 0 ] === 1 && rgba[ 1 ] === 1 && rgba[ 2 ] === 1 && rgba[ 3 ] === 1 ) {
-                    targetType = targetTypes[ i ];
-                    testTarget.dispose();
-                    break;
-                }
+                function fuzzyCompare( a, b, epsilon = 0.01 ) { return Math.abs( a - b ) < epsilon; }
+
+                let complete = gl.checkFramebufferStatus( gl.FRAMEBUFFER ) === gl.FRAMEBUFFER_COMPLETE;
+                complete = complete && rgba[ 0 ] === 1 && rgba[ 1 ] === 0 && rgba[ 2 ] === 0 && fuzzyCompare( rgba[ 3 ], 0.5 );
+                complete = complete || i === targetTypes.length - 1;
 
                 testTarget.dispose();
 
+                if ( complete ) {
+                    targetType = targetTypes[ i ];
+                    break;
+                }
+
             }
 
+            testPass.dispose();
             renderer.setRenderTarget( oldTarget );
             renderer.setClearColor( this._oldClearColor, oldClearAlpha );
 
@@ -606,7 +570,6 @@
             this.blendPass.dispose();
             this.copyPass.dispose();
             this.compositePass.dispose();
-            this.testPass.dispose();
 
             this.baseTarget.dispose();
             this.accumulationTarget.dispose();
@@ -805,9 +768,8 @@
     // Multiple Render Targets:
     //      https://github.com/mrdoob/three.js/blob/master/examples/webgl2_multiple_rendertargets.html
     //
-    // THREE Issue(s):
+    // THREE Issue:
     //      https://github.com/mrdoob/three.js/issues/9977
-    //      https://github.com/mrdoob/three.js/pull/24227
     //
     /////////////////////////////////////////////////////////////////////////////////////
     /////   Acknowledgements
@@ -876,7 +838,6 @@
     exports.MeshWboitMaterial = MeshWboitMaterial;
     exports.WboitCompositeShader = WboitCompositeShader;
     exports.WboitPass = WboitPass;
-    exports.WboitTestShader = WboitTestShader;
 
 }));
 //# sourceMappingURL=index.umd.cjs.map

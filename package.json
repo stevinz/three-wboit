@@ -1,6 +1,6 @@
 {
   "name": "three-wboit",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Weighted, blended order independent transparency pass for use with three.js.",
   "module": "src/index.js",
   "main": "build/index.umd.cjs",
