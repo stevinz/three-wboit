@@ -22,9 +22,9 @@ import * as THREE from 'three';
 import { Pass } from 'three/addons/postprocessing/Pass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 
+import { BasicShader } from 'three/addons/shaders/BasicShader.js';
 import { CopyShader } from 'three/addons/shaders/CopyShader.js';
 import { WboitCompositeShader } from './shaders/WboitCompositeShader.js';
-import { WboitTestShader } from './shaders/WboitTestShader.js';
 import { WboitStages } from './materials/MeshWboitMaterial.js';
 
 const _clearColorZero = new THREE.Color( 0.0, 0.0, 0.0 );
@@ -84,11 +84,11 @@ class WboitPass extends Pass {
         this.compositePass.material.blendSrc = THREE.OneMinusSrcAlphaFactor;
         this.compositePass.material.blendDst = THREE.SrcAlphaFactor;
 
-        this.testPass = new ShaderPass( WboitTestShader );
-        this.testPass.material.blending = THREE.CustomBlending;
-        this.testPass.material.blendEquation = THREE.AddEquation;
-        this.testPass.material.blendSrc = THREE.OneFactor;
-        this.testPass.material.blendDst = THREE.ZeroFactor;
+        const testPass = new ShaderPass( BasicShader );
+        testPass.material.blending = THREE.CustomBlending;
+        testPass.material.blendEquation = THREE.AddEquation;
+        testPass.material.blendSrc = THREE.OneFactor;
+        testPass.material.blendDst = THREE.ZeroFactor;
 
         // Find Best Render Target Type
 
@@ -112,7 +112,7 @@ class WboitPass extends Pass {
 
         for ( let i = 0; i < targetTypes.length; i ++ ) {
 
-            const testTarget = new THREE.WebGLRenderTarget( 8, 8, {
+            const testTarget = new THREE.WebGLRenderTarget( 1, 1, {
                 minFilter: THREE.NearestFilter,
                 magFilter: THREE.NearestFilter,
                 type: targetTypes[ i ],
@@ -121,7 +121,7 @@ class WboitPass extends Pass {
                 depthBuffer: true,
             } );
 
-            this.testPass.render( renderer, testTarget );
+            testPass.render( renderer, testTarget );
 
             gl.readPixels( 0, 0, 1, 1, gl.RGBA, targetGlTypes[ i ], targetBuffers[ i ] );
             const rgba = Array.apply( [], targetBuffers[ i ] );
@@ -130,17 +130,22 @@ class WboitPass extends Pass {
             rgba[ 2 ] /= targetDivisor[ i ];
             rgba[ 3 ] /= targetDivisor[ i ];
 
-            if ( gl.checkFramebufferStatus( gl.FRAMEBUFFER ) === gl.FRAMEBUFFER_COMPLETE &&
-                rgba[ 0 ] === 1 && rgba[ 1 ] === 1 && rgba[ 2 ] === 1 && rgba[ 3 ] === 1 ) {
-                targetType = targetTypes[ i ];
-                testTarget.dispose();
-                break;
-            }
+            function fuzzyCompare( a, b, epsilon = 0.01 ) { return Math.abs( a - b ) < epsilon; }
+
+            let complete = gl.checkFramebufferStatus( gl.FRAMEBUFFER ) === gl.FRAMEBUFFER_COMPLETE;
+            complete = complete && rgba[ 0 ] === 1 && rgba[ 1 ] === 0 && rgba[ 2 ] === 0 && fuzzyCompare( rgba[ 3 ], 0.5 );
+            complete = complete || i === targetTypes.length - 1;
 
             testTarget.dispose();
 
+            if ( complete ) {
+                targetType = targetTypes[ i ];
+                break;
+            }
+
         }
 
+        testPass.dispose();
         renderer.setRenderTarget( oldTarget );
         renderer.setClearColor( this._oldClearColor, oldClearAlpha );
 
@@ -171,7 +176,6 @@ class WboitPass extends Pass {
         this.blendPass.dispose();
         this.copyPass.dispose();
         this.compositePass.dispose();
-        this.testPass.dispose();
 
         this.baseTarget.dispose();
         this.accumulationTarget.dispose();
