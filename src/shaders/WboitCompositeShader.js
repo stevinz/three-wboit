@@ -19,6 +19,9 @@ const WboitCompositeShader = {
 
 	vertexShader: /* glsl */`
 
+        precision highp float;
+        precision highp int;
+
         varying vec2 vUv;
 
         void main() {
@@ -31,6 +34,9 @@ const WboitCompositeShader = {
     `,
 
 	fragmentShader: /* glsl */`
+
+        precision highp float;
+        precision highp int;
 
         varying vec2 vUv;
 

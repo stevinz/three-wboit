@@ -38,6 +38,9 @@ const WboitBasicShader = {
 
 	vertexShader: /* glsl */`
 
+        precision highp float;
+        precision highp int;
+
         #include <common>
         #include <uv_pars_vertex>
         #include <uv2_pars_vertex>
@@ -82,6 +85,9 @@ const WboitBasicShader = {
     `,
 
 	fragmentShader: /* glsl */`
+
+        precision highp float;
+        precision highp int;
 
         // MeshWboitMaterial
 

@@ -32,7 +32,7 @@
                  "imports": {
                     "three": "https://unpkg.com/three@0.146.0/build/three.module.js",
                     "three/addons/": "https://unpkg.com/three@0.146.0/examples/jsm/",
-                    "three-wboit": "https://unpkg.com/three-wboit@1.0.0/build/index.module.js"
+                    "three-wboit": "https://unpkg.com/three-wboit@1.0.1/build/index.module.js"
                 }
             }
         </script>
@@ -49,12 +49,12 @@
             import { TexturePass } from 'three/addons/postprocessing/TexturePass.js';
 
             // NPM
-            import { MeshWboitMaterial } from 'three-wboit';
-            import { WboitPass } from 'three-wboit';
+            // import { MeshWboitMaterial } from 'three-wboit';
+            // import { WboitPass } from 'three-wboit';
 
             // // Local
-            // import { MeshWboitMaterial } from '../src/materials/MeshWboitMaterial.js';
-            // import { WboitPass } from '../src/WboitPass.js';
+            import { MeshWboitMaterial } from '../src/materials/MeshWboitMaterial.js';
+            import { WboitPass } from '../src/WboitPass.js';
 
             let scene, camera, controls, renderer, texturePass, wboitPass;
 
@@ -87,10 +87,6 @@
                 document.body.appendChild( renderer.domElement );
 
                 gl = renderer.getContext();
-
-                if ( ! renderer.capabilities.floatFragmentTextures ) {
-                    return console.error( 'No OES_texture_float support for float textures!' );
-                }
 
                 camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 0.10, 100 );
                 camera.position.z = 10;
