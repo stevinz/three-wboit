@@ -233,8 +233,6 @@
 
                 loader.load( './models/spheres-transparent.glb', function ( gltf ) {
 
-                    console.log (gltf.scene);
-
                     gltf.scene.traverse( ( object ) => {
 
                         if ( object.material ) {
