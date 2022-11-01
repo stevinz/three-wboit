@@ -6,7 +6,7 @@ There are sveral common techniques available for [order independent transparency
 
 WBOIT is approximate, though, and while it provides good results it may not be appropriate for all use cases. One of the biggest advantages is for the rendering of highly detailed transparent models. Typically when rendering such a model it is common for some faces to be depth culled. When rendering with WBOIT, all faces will be visible.
 
-There are a variety of weight functions available when rendering with WBOIT. This is partially due to inconsistencies with overlapping pixels at differing depths. Some weight functions are better at incorporating camera near / far planes, some are better at handling large groups of triangles. This implementation includes a weight modifier that attempts to adjust both opacity and color depending on the ddepth of the transparent pixels.
+There are a variety of weight functions available when rendering with WBOIT. This is partially due to inconsistencies with overlapping pixels at differing depths. Some weight functions are better at incorporating camera near / far planes, some are better at handling large groups of triangles. This implementation includes a weight modifier that attempts to adjust both opacity and color depending on the depth of the transparent pixels.
 
 ## Examples
 
@@ -36,11 +36,11 @@ import { MeshWboitMaterial, WboitPass } from 'https://unpkg.com/three-wboit/buil
 
 ## Usage
 
-To setup your scene to use WBOIT, first create an instance of `WboitPass`. When creating objects intended to be transparent use the `MeshWboitMaterial`, WBOIT is enabled on objects using this material by default. it can be turned on / off by setting the `transparent` property of this material.
+To setup your scene to use WBOIT, create an instance of `WboitPass`.
 
-The material is functionaly equivalent to `MeshBasicMaterial`, and supports all methods and properties of that [built-in material](https://threejs.org/docs/#api/en/materials/MeshBasicMaterial).
+When creating `Mesh` objects intended to be transparent, use the included material `MeshWboitMaterial`. Objects using this material have WBOIT enabled by default. WBOIT can be turned on / off on each object by setting the material's `transparent` property. The material is functionaly equivalent to `MeshBasicMaterial`, and supports all it's [methods and properties](https://threejs.org/docs/#api/en/materials/MeshBasicMaterial).
 
-When rendering your scene, instead of calling `renderer.render()`, call `wboitPass.render( renderer )`;
+When rendering your scene, instead of calling `renderer.render()`, call `wboitPass.render( renderer )`. Enjoy.
 
 ```javascript
 import * as THREE from 'three';
@@ -72,6 +72,10 @@ render() {
 }
 
 ```
+
+## Credits
+
+-
 
 ## License
 
