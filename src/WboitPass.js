@@ -15,10 +15,6 @@
 //      Dual Depth Peeling, 2008 (many passes)
 //      Weighted, Blended, 2013 (fastest, approximate, mobile friendly)
 //
-//  THREE Issue(s):
-//      https://github.com/mrdoob/three.js/issues/9977
-//      https://github.com/mrdoob/three.js/pull/24227
-//
 /////////////////////////////////////////////////////////////////////////////////////
 
 import * as THREE from 'three';
@@ -138,7 +134,6 @@ class WboitPass extends Pass {
                 rgba[ 0 ] === 1 && rgba[ 1 ] === 1 && rgba[ 2 ] === 1 && rgba[ 3 ] === 1 ) {
                 targetType = targetTypes[ i ];
                 testTarget.dispose();
-                console.log( `Framebuffer Type: ${ i }` );
                 break;
             }
 
@@ -380,6 +375,10 @@ export { WboitPass };
 //
 // Multiple Render Targets:
 //      https://github.com/mrdoob/three.js/blob/master/examples/webgl2_multiple_rendertargets.html
+//
+// THREE Issue(s):
+//      https://github.com/mrdoob/three.js/issues/9977
+//      https://github.com/mrdoob/three.js/pull/24227
 //
 /////////////////////////////////////////////////////////////////////////////////////
 /////   Acknowledgements

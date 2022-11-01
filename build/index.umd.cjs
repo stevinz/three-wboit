@@ -411,6 +411,47 @@
 
     /** /////////////////////////////////////////////////////////////////////////////////
     //
+    // @description WboitCompositeShader
+    // @about       Full-screen composite shader for WBOIT for use with WboitPass
+    // @author      Stephens Nunnally <@stevinz>
+    // @license     MIT - Copyright (c) 2022 Stephens Nunnally and Scidian Software
+    // @source      https://github.com/stevinz/three-wboit
+    //
+    ///////////////////////////////////////////////////////////////////////////////////*/
+
+    const WboitTestShader = {
+
+    	uniforms: {},
+
+    	vertexShader: /* glsl */`
+
+        varying vec2 vUv;
+
+        void main() {
+
+            vUv = uv;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+
+        }
+
+    `,
+
+    	fragmentShader: /* glsl */`
+
+        varying vec2 vUv;
+
+        void main() {
+
+            gl_FragColor = vec4( 1.0, 1.0, 1.0, 1.0 );
+
+        }
+
+    `,
+
+    };
+
+    /** /////////////////////////////////////////////////////////////////////////////////
+    //
     // @description WboitRenderer
     // @about       Weighted, blended order-independent transparency renderer for use with three.js WebGLRenderer
     // @author      Stephens Nunnally <@stevinz>
@@ -453,58 +494,6 @@
             this._depthWriteCache = new Map();
             this._visibilityCache = new Map();
 
-            // Render Target Type
-
-            const size = renderer.getSize( new THREE__namespace.Vector2() );
-            const pixelRatio = renderer.getPixelRatio();
-            const effectiveWidth = size.width * pixelRatio;
-            const effectiveHeight = size.height * pixelRatio;
-
-            const gl = renderer.getContext();
-            const currentTarget = renderer.getRenderTarget();
-
-            const targetTypes = [ THREE__namespace.FloatType, THREE__namespace.HalfFloatType, THREE__namespace.UnsignedIntType, THREE__namespace.UnsignedByteType ];
-
-            let targetType;
-
-            for ( let i = 0; i < targetTypes.length; i ++ ) {
-
-                const testTarget = new THREE__namespace.WebGLRenderTarget( 1, 1, { type: targetTypes[ i ] } );
-
-                renderer.setRenderTarget( testTarget );
-
-                if ( gl.checkFramebufferStatus( gl.FRAMEBUFFER ) === gl.FRAMEBUFFER_COMPLETE ) {
-                    targetType = targetTypes[ i ];
-                    testTarget.dispose();
-                    break;
-                }
-
-                testTarget.dispose();
-
-            }
-
-            renderer.setRenderTarget( currentTarget );
-
-            // Render Targets
-
-            this.baseTarget = new THREE__namespace.WebGLRenderTarget( effectiveWidth, effectiveHeight, {
-                minFilter: THREE__namespace.NearestFilter,
-                magFilter: THREE__namespace.NearestFilter,
-                type: targetType,
-                format: THREE__namespace.RGBAFormat,
-                stencilBuffer: false,
-                depthBuffer: true,
-            } );
-
-            this.accumulationTarget = new THREE__namespace.WebGLRenderTarget( effectiveWidth, effectiveHeight, {
-                minFilter: THREE__namespace.NearestFilter,
-                magFilter: THREE__namespace.NearestFilter,
-                type: targetType,
-                format: THREE__namespace.RGBAFormat,
-                stencilBuffer: false,
-                depthBuffer: false,
-            } );
-
             // Passes
 
             this.blendPass = new ShaderPass_js.ShaderPass( CopyShader_js.CopyShader );
@@ -530,16 +519,97 @@
             this.compositePass.material.blendSrc = THREE__namespace.OneMinusSrcAlphaFactor;
             this.compositePass.material.blendDst = THREE__namespace.SrcAlphaFactor;
 
+            this.testPass = new ShaderPass_js.ShaderPass( WboitTestShader );
+            this.testPass.material.blending = THREE__namespace.CustomBlending;
+            this.testPass.material.blendEquation = THREE__namespace.AddEquation;
+            this.testPass.material.blendSrc = THREE__namespace.OneFactor;
+            this.testPass.material.blendDst = THREE__namespace.ZeroFactor;
+
+            // Find Best Render Target Type
+
+            const size = renderer.getSize( new THREE__namespace.Vector2() );
+            const pixelRatio = renderer.getPixelRatio();
+            const effectiveWidth = size.width * pixelRatio;
+            const effectiveHeight = size.height * pixelRatio;
+
+            const gl = renderer.getContext();
+
+            const oldTarget = renderer.getRenderTarget();
+            const oldClearAlpha = renderer.getClearAlpha();
+            renderer.getClearColor( this._oldClearColor );
+
+            const targetTypes = [ THREE__namespace.FloatType, THREE__namespace.HalfFloatType, THREE__namespace.UnsignedIntType, THREE__namespace.UnsignedByteType ];
+            const targetGlTypes = [ gl.FLOAT, gl.HALF_FLOAT, gl.UNSIGNED_INT, gl.UNSIGNED_BYTE ];
+            const targetBuffers = [ new Float32Array( 4 ), new Float32Array( 4 ), new Uint32Array( 4 ), new Uint8Array( 4 ) ];
+            const targetDivisor = [ 1, 1, 255, 255 ];
+
+            let targetType;
+
+            for ( let i = 0; i < targetTypes.length; i ++ ) {
+
+                const testTarget = new THREE__namespace.WebGLRenderTarget( 8, 8, {
+                    minFilter: THREE__namespace.NearestFilter,
+                    magFilter: THREE__namespace.NearestFilter,
+                    type: targetTypes[ i ],
+                    format: THREE__namespace.RGBAFormat,
+                    stencilBuffer: false,
+                    depthBuffer: true,
+                } );
+
+                this.testPass.render( renderer, testTarget );
+
+                gl.readPixels( 0, 0, 1, 1, gl.RGBA, targetGlTypes[ i ], targetBuffers[ i ] );
+                const rgba = Array.apply( [], targetBuffers[ i ] );
+                rgba[ 0 ] /= targetDivisor[ i ];
+                rgba[ 1 ] /= targetDivisor[ i ];
+                rgba[ 2 ] /= targetDivisor[ i ];
+                rgba[ 3 ] /= targetDivisor[ i ];
+
+                if ( gl.checkFramebufferStatus( gl.FRAMEBUFFER ) === gl.FRAMEBUFFER_COMPLETE &&
+                    rgba[ 0 ] === 1 && rgba[ 1 ] === 1 && rgba[ 2 ] === 1 && rgba[ 3 ] === 1 ) {
+                    targetType = targetTypes[ i ];
+                    testTarget.dispose();
+                    break;
+                }
+
+                testTarget.dispose();
+
+            }
+
+            renderer.setRenderTarget( oldTarget );
+            renderer.setClearColor( this._oldClearColor, oldClearAlpha );
+
+            // Render Targets
+
+            this.baseTarget = new THREE__namespace.WebGLRenderTarget( effectiveWidth, effectiveHeight, {
+                minFilter: THREE__namespace.NearestFilter,
+                magFilter: THREE__namespace.NearestFilter,
+                type: targetType,
+                format: THREE__namespace.RGBAFormat,
+                stencilBuffer: false,
+                depthBuffer: true,
+            } );
+
+            this.accumulationTarget = new THREE__namespace.WebGLRenderTarget( effectiveWidth, effectiveHeight, {
+                minFilter: THREE__namespace.NearestFilter,
+                magFilter: THREE__namespace.NearestFilter,
+                type: targetType,
+                format: THREE__namespace.RGBAFormat,
+                stencilBuffer: false,
+                depthBuffer: false,
+            } );
+
         }
 
         dispose() {
 
-            this.baseTarget.dispose();
-            this.accumulationTarget.dispose();
-
             this.blendPass.dispose();
             this.copyPass.dispose();
             this.compositePass.dispose();
+            this.testPass.dispose();
+
+            this.baseTarget.dispose();
+            this.accumulationTarget.dispose();
 
         }
 
@@ -735,6 +805,10 @@
     // Multiple Render Targets:
     //      https://github.com/mrdoob/three.js/blob/master/examples/webgl2_multiple_rendertargets.html
     //
+    // THREE Issue(s):
+    //      https://github.com/mrdoob/three.js/issues/9977
+    //      https://github.com/mrdoob/three.js/pull/24227
+    //
     /////////////////////////////////////////////////////////////////////////////////////
     /////   Acknowledgements
     /////////////////////////////////////////////////////////////////////////////////////
@@ -802,6 +876,7 @@
     exports.MeshWboitMaterial = MeshWboitMaterial;
     exports.WboitCompositeShader = WboitCompositeShader;
     exports.WboitPass = WboitPass;
+    exports.WboitTestShader = WboitTestShader;
 
 }));
 //# sourceMappingURL=index.umd.cjs.map
