@@ -376,9 +376,8 @@ export { WboitPass };
 // Multiple Render Targets:
 //      https://github.com/mrdoob/three.js/blob/master/examples/webgl2_multiple_rendertargets.html
 //
-// THREE Issue(s):
+// THREE Issue:
 //      https://github.com/mrdoob/three.js/issues/9977
-//      https://github.com/mrdoob/three.js/pull/24227
 //
 /////////////////////////////////////////////////////////////////////////////////////
 /////   Acknowledgements

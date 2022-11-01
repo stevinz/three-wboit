@@ -63,7 +63,7 @@
             let pixelBuffer = new Uint8Array( 4 );
 
             const scenes = [];
-            const sceneTypes = [ 'Boxes', 'Lattice', 'Knot', 'Ship', 'Spheres' ];
+            const sceneTypes = [ 'Boxes', 'Lattice', 'Knot', 'Scotch', 'Ship', 'Spheres' ];
             sceneTypes.forEach( type => scenes[ type ] = new THREE.Scene() );
 
             const params = {
@@ -105,6 +105,13 @@
                 } );
 
                 const textureLoader = new THREE.TextureLoader();
+
+                // loader
+
+                const loader = new GLTFLoader();
+                const dracoLoader = new DRACOLoader();
+                dracoLoader.setDecoderPath( 'https://unpkg.com/three@0.146.0/examples/js/libs/draco/' );
+                loader.setDRACOLoader( dracoLoader );
 
                 // scene 'Boxes'
 
@@ -191,12 +198,72 @@
 
                 }
 
-                // scene 'Ship'
+                // scene 'Scotch'
 
-                const loader = new GLTFLoader();
-                const dracoLoader = new DRACOLoader();
-                dracoLoader.setDecoderPath( 'https://unpkg.com/three@0.146.0/examples/js/libs/draco/' );
-                loader.setDRACOLoader( dracoLoader );
+                loader.load( './models/scotch.glb', function ( gltf ) {
+
+                    gltf.scene.traverse( ( object ) => {
+
+                        if ( object.material ) {
+
+                            const coloredMaterial = wboitMaterial.clone();
+                            if ( object.name.includes( 'glenfiddich' ) ) {
+                                coloredMaterial.map = object.material.map;
+                            } else {
+                                coloredMaterial.color.setRGB( 0.25, 0.5, 0.5 );
+                            }
+
+                            object.material.dispose();
+                            object.material = coloredMaterial;
+
+                        }
+
+                    } );
+
+                    scenes[ 'Scotch' ].add( gltf.scene );
+
+                    gltf.scene.scale.multiplyScalar( 0.25 );
+                    gltf.scene.position.x -= 1.50;
+                    gltf.scene.position.y -= 3.00;
+                    gltf.scene.position.z += 1.25;
+
+                    updateSceneParameters();
+
+                }, undefined, error => console.error( error ) );
+
+                loader.load( './models/spheres-transparent.glb', function ( gltf ) {
+
+                    console.log (gltf.scene);
+
+                    gltf.scene.traverse( ( object ) => {
+
+                        if ( object.material ) {
+
+                            const coloredMaterial = wboitMaterial.clone();
+                            coloredMaterial.color.copy ( object.material.color );
+                            object.material.dispose();
+                            object.material = coloredMaterial;
+
+                        }
+
+                    } );
+
+                    scenes[ 'Scotch' ].add( gltf.scene );
+
+                    const sphereCopy = gltf.scene.clone();
+                    scenes[ 'Scotch' ].add( sphereCopy );
+
+                    gltf.scene.scale.multiplyScalar( 0.65 );
+                    gltf.scene.position.x += 3.0;
+
+                    sphereCopy.scale.multiplyScalar( 0.35 );
+                    sphereCopy.position.y -= 2.0;
+
+                    updateSceneParameters();
+
+                }, undefined, error => console.error( error ) );
+
+                // scene 'Ship'
 
                 loader.load( './models/ship.glb', function ( gltf ) {
 
@@ -219,6 +286,8 @@
                     gltf.scene.rotation.y = Math.PI / 1.5;
                     gltf.scene.position.y -= 2.00;
                     gltf.scene.scale.multiplyScalar( 0.85 );
+
+                    updateSceneParameters();
 
                 }, undefined, error => console.error( error ) );
 
