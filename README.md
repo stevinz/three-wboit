@@ -61,21 +61,21 @@ const wboitPass = new WboitPass( renderer, scene, camera, 0 /* optional clear co
 render() {
 
     // OLD:
-    //
     //  renderer.render( scene, camera );
-    //
 
     // NEW:
-
     wboitPass.render( renderer );
 
 }
 
 ```
 
-## Credits
+## Acknowledgements
 
--
+- Weighted, Blended Order-Independent Transparency by Morgan McGuire and Louis Bavoil - [Paper](http://jcgt.org/published/0002/02/09/)
+- WebGL 2 Example by Tarek Sherif <@tsherif> - [Repo](https://github.com/tsherif/webgl2examples/blob/master/oit.html)
+- Depth Peel Three.js Example by Dusan Bosnjak <@pailhead> - [Pull](https://github.com/mrdoob/three.js/pull/15490)
+- Weighted, Blended Example Three.js Example by Alexander Rose <@arose> - [Issue](https://github.com/mrdoob/three.js/issues/4814)
 
 ## License
 
