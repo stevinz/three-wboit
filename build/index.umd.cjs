@@ -61,6 +61,9 @@
 
     	vertexShader: /* glsl */`
 
+        precision highp float;
+        precision highp int;
+
         #include <common>
         #include <uv_pars_vertex>
         #include <uv2_pars_vertex>
@@ -105,6 +108,9 @@
     `,
 
     	fragmentShader: /* glsl */`
+
+        precision highp float;
+        precision highp int;
 
         // MeshWboitMaterial
 
@@ -357,6 +363,9 @@
 
     	vertexShader: /* glsl */`
 
+        precision highp float;
+        precision highp int;
+
         varying vec2 vUv;
 
         void main() {
@@ -369,6 +378,9 @@
     `,
 
     	fragmentShader: /* glsl */`
+
+        precision highp float;
+        precision highp int;
 
         varying vec2 vUv;
 
@@ -448,10 +460,21 @@
             const effectiveWidth = size.width * pixelRatio;
             const effectiveHeight = size.height * pixelRatio;
 
+            const gl = renderer.getContext();
+
+            let targetType = THREE__namespace.FloatType;
+
+            if ( ( ! renderer.capabilities.isWebGL2 && ! gl.getExtension( 'OES_texture_float' ) ) || ! gl.getExtension( 'EXT_color_buffer_float' ) ) {
+
+                console.warn( 'No support for rendering to float textures!' );
+                targetType = THREE__namespace.UnsignedByteType;
+
+            }
+
             this.baseTarget = new THREE__namespace.WebGLRenderTarget( effectiveWidth, effectiveHeight, {
                 minFilter: THREE__namespace.NearestFilter,
                 magFilter: THREE__namespace.NearestFilter,
-                type: THREE__namespace.FloatType,
+                type: targetType,
                 format: THREE__namespace.RGBAFormat,
                 stencilBuffer: false,
                 depthBuffer: true,
@@ -460,7 +483,7 @@
             this.accumulationTarget = new THREE__namespace.WebGLRenderTarget( effectiveWidth, effectiveHeight, {
                 minFilter: THREE__namespace.NearestFilter,
                 magFilter: THREE__namespace.NearestFilter,
-                type: THREE__namespace.FloatType,
+                type: targetType,
                 format: THREE__namespace.RGBAFormat,
                 stencilBuffer: false,
                 depthBuffer: false,

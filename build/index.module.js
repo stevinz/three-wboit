@@ -42,6 +42,9 @@ const WboitBasicShader = {
 
 	vertexShader: /* glsl */`
 
+        precision highp float;
+        precision highp int;
+
         #include <common>
         #include <uv_pars_vertex>
         #include <uv2_pars_vertex>
@@ -86,6 +89,9 @@ const WboitBasicShader = {
     `,
 
 	fragmentShader: /* glsl */`
+
+        precision highp float;
+        precision highp int;
 
         // MeshWboitMaterial
 
@@ -338,6 +344,9 @@ const WboitCompositeShader = {
 
 	vertexShader: /* glsl */`
 
+        precision highp float;
+        precision highp int;
+
         varying vec2 vUv;
 
         void main() {
@@ -350,6 +359,9 @@ const WboitCompositeShader = {
     `,
 
 	fragmentShader: /* glsl */`
+
+        precision highp float;
+        precision highp int;
 
         varying vec2 vUv;
 
@@ -429,10 +441,21 @@ class WboitPass extends Pass {
         const effectiveWidth = size.width * pixelRatio;
         const effectiveHeight = size.height * pixelRatio;
 
+        const gl = renderer.getContext();
+
+        let targetType = THREE.FloatType;
+
+        if ( ( ! renderer.capabilities.isWebGL2 && ! gl.getExtension( 'OES_texture_float' ) ) || ! gl.getExtension( 'EXT_color_buffer_float' ) ) {
+
+            console.warn( 'No support for rendering to float textures!' );
+            targetType = THREE.UnsignedByteType;
+
+        }
+
         this.baseTarget = new THREE.WebGLRenderTarget( effectiveWidth, effectiveHeight, {
             minFilter: THREE.NearestFilter,
             magFilter: THREE.NearestFilter,
-            type: THREE.FloatType,
+            type: targetType,
             format: THREE.RGBAFormat,
             stencilBuffer: false,
             depthBuffer: true,
@@ -441,7 +464,7 @@ class WboitPass extends Pass {
         this.accumulationTarget = new THREE.WebGLRenderTarget( effectiveWidth, effectiveHeight, {
             minFilter: THREE.NearestFilter,
             magFilter: THREE.NearestFilter,
-            type: THREE.FloatType,
+            type: targetType,
             format: THREE.RGBAFormat,
             stencilBuffer: false,
             depthBuffer: false,
