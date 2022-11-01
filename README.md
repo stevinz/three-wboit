@@ -2,20 +2,15 @@
 
 An implementation of Weighted, Blended Order Independent Transparency ([paper](http://jcgt.org/published/0002/02/09/), [blog](http://casual-effects.blogspot.com/2015/03/implemented-weighted-blended-order.html)) for use with [three.js](https://threejs.org/). This implementation is designed as a rendering [Pass](https://github.com/mrdoob/three.js/blob/dev/examples/jsm/postprocessing/Pass.js). It can be used as a stand-alone replacement for `renderer.render()`, or used as part of a larger rendering stack with [Effect Composer](https://github.com/mrdoob/three.js/blob/dev/examples/jsm/postprocessing/EffectComposer.js).
 
-There are sveral common techniques available for [order independent transparency](https://learnopengl.com/Guest-Articles/2020/OIT/Introduction). This implementation uses Wboit for it's high performance and compatibility on slower hardware. This implementation is both WebGL 1 compatible and mobile friendly.
+There are sveral common techniques available for [order independent transparency](https://learnopengl.com/Guest-Articles/2020/OIT/Introduction). This implementation uses WBOIT for it's high performance and compatibility on slower hardware. This implementation is both WebGL 1 compatible and mobile friendly.
+
+WBOIT is approximate, though, and while it provides good results it may not be appropriate for all use cases. One of the biggest advantages is for the rendering of highly detailed transparent models. Typically when rendering such a model it is common for some faces to be depth culled. When rendering with WBOIT, all faces will be visible.
+
+There are a variety of weight functions available when rendering with WBOIT. This is partially due to inconsistencies with overlapping pixels at differing depths. Some weight functions are better at incorporating camera near / far planes, some are better at handling large groups of triangles. This implementation includes a weight modifier that attempts to adjust both opacity and color depending on the ddepth of the transparent pixels.
 
 ## Examples
 
 - <a href='https://stevinz.github.io/three-wboit/WeightedBlended.html'>Transparent Scene Demos</a>
-
-## Background
-
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;At one point, [three.js](https://threejs.org/) included a subdivision surface modifier in the extended examples, it was removed in r125. This modifier was originally based on the [Catmull-Clark](https://en.wikipedia.org/wiki/Catmull%E2%80%93Clark_subdivision_surface) algorithm, which works best for geometry with convex coplanar n-gon faces. In three.js r60 the modifier was changed to use the Loop algorithm, which was designed to work better with triangle based meshes.
-
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The Loop algorithm, however, doesn't always provide uniform results as the vertices are skewed toward the most used vertex positions. A triangle box (like `BoxGeometry` for example) will favor some corners more than others. To alleviate this issue, this implementation includes an initial pass to split coplanar faces at their shared edges. It starts by splitting along the longest shared edge first, and then from that midpoint it splits to any remaining coplanar shared edges. This can be disabled by passing 'split' as false.
-</div>
-
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Also by default, this implementation inserts new UV coordinates, but does not average them using the Loop algorithm. In some cases (often in flat geometries) this will produce undesired results, a noticeable tearing will occur. In such cases, try passing 'uvSmooth' as true to enable UV averaging.
 
 ## Install
 
@@ -41,48 +36,42 @@ import { MeshWboitMaterial, WboitPass } from 'https://unpkg.com/three-wboit/buil
 
 ## Usage
 
-To create subdivided geometry, use the static function `modify()`. The following code creates a cube with smoothed geometry and adds it to a three.js `Scene`.
+To setup your scene to use WBOIT, first create an instance of `WboitPass`. When creating objects intended to be transparent use the `MeshWboitMaterial`, WBOIT is enabled on objects using this material by default. it can be turned on / off by setting the `transparent` property of this material.
+
+The material is functionaly equivalent to `MeshBasicMaterial`, and supports all methods and properties of that [built-in material](https://threejs.org/docs/#api/en/materials/MeshBasicMaterial).
+
+When rendering your scene, instead of calling `renderer.render()`, call `wboitPass.render( renderer )`;
 
 ```javascript
 import * as THREE from 'three';
-import { LoopSubdivision } from 'LoopSubdivision.js';
 
-const iterations = 1;
+import { MeshWboitMaterial, WboitPass } from 'three-wboit';
 
-const params = {
-    split:          true,       // optional, default: true
-    uvSmooth:       false,      // optional, default: false
-    preserveEdges:  false,      // optional, default: false
-    flatOnly:       false,      // optional, default: false
-    maxTriangles:   Infinity,   // optional, default: Infinity
-};
+const renderer = new THREE.WebGLRenderer( { preserveDrawingBuffer: true } );
 
-const geometry = LoopSubdivision.modify(new THREE.BoxGeometry(), iterations, params);
-
-const material = new THREE.MeshNormalMaterial();
-const mesh = new THREE.Mesh(geometry, material);
+const camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 0.10, 100 );
 
 const scene = new THREE.Scene();
-scene.add(mesh);
+scene.add( new THREE.BoxGeometry(), new MeshWboitMaterial( { opacity: 0.5 } ) );
+
+const wboitPass = new WboitPass( renderer, scene, camera, 0 /* optional clear color */, 1.0 /* optional clear alpha */);
+
+...
+
+render() {
+
+    // OLD:
+    //
+    //  renderer.render( scene, camera );
+    //
+
+    // NEW:
+
+    wboitPass.render( renderer );
+
+}
+
 ```
-
-## Modify
-
-LoopSubdivision.modify(bufferGeometry, iterations = 1, params = {}) {
-
-- [bufferGeometry]() : BufferGeometry - existing three.js BufferGeometry object to be subdivided
-- [iterations]() : Int (optional) - total passes of subdivision to apply, generally between 1 to 5
-- [params]() : Object (optional) - optional parameters object, see below
-
-Parameters Object ('params')
-
-- [split]() : Boolean (optional) - split coplanar faces at their shared edges before subdividing?
-- [uvSmooth]() : Boolean (optional) - smooth UV coordinates during subdivision?
-- [preserveEdges]() Boolean (optional) - should edges / breaks in geometry be ignored during subdivision?
-- [flatOnly]() : Boolean (optioanl) - subdivide triangles but do not apply smoothing?
-- [maxTriangles]() : Number (optional) - limits subdivision to meshes with less than this number of triangles
-
-> NOTE: This modifier converts geometry to non-indexed before the subdivision algorithm is applied. If desired, you can use [BufferGeometryUtils.mergeVertices](https://threejs.org/docs/?q=buffer#examples/en/utils/BufferGeometryUtils.mergeVertices) to re-index geometry.
 
 ## License
 
