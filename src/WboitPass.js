@@ -62,7 +62,7 @@ class WboitPass extends Pass {
         this._depthWriteCache = new Map();
         this._visibilityCache = new Map();
 
-        // Render Targets
+        // Render Target Type
 
         const size = renderer.getSize( new THREE.Vector2() );
         const pixelRatio = renderer.getPixelRatio();
@@ -70,15 +70,31 @@ class WboitPass extends Pass {
         const effectiveHeight = size.height * pixelRatio;
 
         const gl = renderer.getContext();
+        const currentTarget = renderer.getRenderTarget();
 
-        let targetType = THREE.FloatType;
+        const targetTypes = [ THREE.FloatType, THREE.HalfFloatType, THREE.UnsignedIntType, THREE.UnsignedByteType ]
 
-        if ( ( ! renderer.capabilities.isWebGL2 && ! gl.getExtension( 'OES_texture_float' ) ) || ! gl.getExtension( 'EXT_color_buffer_float' ) ) {
+        let targetType;
 
-            console.warn( 'No support for rendering to float textures!' );
-            targetType = THREE.UnsignedByteType;
+        for ( let i = 0; i < targetTypes.length; i ++ ) {
+
+            const testTarget = new THREE.WebGLRenderTarget( 1, 1, { type: targetTypes[i] } );
+
+            renderer.setRenderTarget( testTarget );
+
+            if ( gl.checkFramebufferStatus( gl.FRAMEBUFFER ) === gl.FRAMEBUFFER_COMPLETE ) {
+                targetType = targetTypes[i];
+                testTarget.dispose();
+                break;
+            }
+
+            testTarget.dispose();
 
         }
+
+        renderer.setRenderTarget( currentTarget );
+
+        // Render Targets
 
         this.baseTarget = new THREE.WebGLRenderTarget( effectiveWidth, effectiveHeight, {
             minFilter: THREE.NearestFilter,
