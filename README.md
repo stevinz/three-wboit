@@ -2,6 +2,10 @@
 
 Weighted, Blended Order Independent Transparency ([paper](http://jcgt.org/published/0002/02/09/), [blog](http://casual-effects.blogspot.com/2015/03/implemented-weighted-blended-order.html)) for use with [three.js](https://threejs.org/). This implementation is designed as a rendering [Pass](https://github.com/mrdoob/three.js/blob/dev/examples/jsm/postprocessing/Pass.js). It can be used as a stand-alone replacement for a traditional render pass (i.e. `renderer.render`), or used as part of a larger rendering stack within [Effect Composer](https://threejs.org/docs/index.html?q=effec#examples/en/postprocessing/EffectComposer).
 
+## Examples
+
+- <a href='https://stevinz.github.io/three-wboit/WeightedBlended.html'>Transparent Scene Demos</a>
+
 ## More Info
 
 There are several common techniques available for [order independent transparency](https://learnopengl.com/Guest-Articles/2020/OIT/Introduction). This implementation uses WBOIT, both for it's high performance and also compatibility on slower hardware. This implementation is WebGL 1 compatible and mobile friendly.
@@ -9,10 +13,6 @@ There are several common techniques available for [order independent transparenc
 One of the biggest advantages of order independent transparency is for the rendering of highly detailed transparent models. Typically when rendering such a model it is common for some faces to be depth culled. When rendering with WBOIT, all faces will be visible. WBOIT is approximate, though, and while it provides good results it may not be appropriate for all use cases.
 
 There are a variety of weight functions available when rendering with WBOIT. This is partially due to inconsistencies in rendering overlapping pixels at varying depths. Some weight functions are better at incorporating camera near / far planes, some are better at handling larger groups of overlapping triangles. This implementation includes a weight modifier within `MeshWboitMaterial` that attempts to adjust the weight function for both opacity and color depending on the depth of the fragments.
-
-## Examples
-
-- <a href='https://stevinz.github.io/three-wboit/WeightedBlended.html'>Transparent Scene Demos</a>
 
 ## Install
 
