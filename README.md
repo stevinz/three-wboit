@@ -81,7 +81,7 @@ render() {
 
 ## License
 
-Subdivide is released under the terms of the MIT license, so it is free to use in your free or commercial projects.
+Released under the terms of the MIT license, so it is free to use in your free or commercial projects.
 
 Copyright (c) 2022 Stephens Nunnally <@stevinz>
 

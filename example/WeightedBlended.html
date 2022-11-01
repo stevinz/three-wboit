@@ -27,14 +27,15 @@
         <!-- Remove this when import maps will be widely supported -->
         <script async src="https://unpkg.com/es-module-shims@1.3.6/dist/es-module-shims.js"></script>
 
-         <script type='importmap'>
-             {
+        <script type='importmap'>
+            {
                  "imports": {
-                     "three": "https://unpkg.com/three@0.146.0/build/three.module.js",
-                    "three/addons/": "https://unpkg.com/three@0.146.0/examples/jsm/"
-                 }
-             }
-         </script>
+                    "three": "https://unpkg.com/three@0.146.0/build/three.module.js",
+                    "three/addons/": "https://unpkg.com/three@0.146.0/examples/jsm/",
+                    "three-wboit": "https://unpkg.com/three-wboit@1.0.0/build/index.module.js"
+                }
+            }
+        </script>
 
         <script type="module">
 
@@ -47,8 +48,13 @@
             import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
             import { TexturePass } from 'three/addons/postprocessing/TexturePass.js';
 
-            import { MeshWboitMaterial } from '../src/materials/MeshWboitMaterial.js';
-            import { WboitPass } from '../src/WboitPass.js';
+            // NPM
+            import { MeshWboitMaterial } from 'three-wboit';
+            import { WboitPass } from 'three-wboit';
+
+            // // Local
+            // import { MeshWboitMaterial } from '../src/materials/MeshWboitMaterial.js';
+            // import { WboitPass } from '../src/WboitPass.js';
 
             let scene, camera, controls, renderer, texturePass, wboitPass;
 
