@@ -1,38 +1,34 @@
 import * as THREE from 'three';
-import { UniformsUtils, UniformsLib, ShaderMaterial, MultiplyOperation } from 'three';
+import { UniformsUtils, UniformsLib, ShaderMaterial, MultiplyOperation, Color } from 'three';
 import { Pass } from 'three/addons/postprocessing/Pass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
-import { BasicShader } from 'three/addons/shaders/BasicShader.js';
 import { CopyShader } from 'three/addons/shaders/CopyShader.js';
 
-/** /////////////////////////////////////////////////////////////////////////////////
-//
-// @description MeshWboitMaterial
-// @about       Reimplementation of MeshBasicMaterial for use with transparent Meshes rendered with WboitPass
-// @author      Stephens Nunnally <@stevinz>
-// @license     MIT - Copyright (c) 2022 Stephens Nunnally and Scidian Software
-// @source      https://github.com/stevinz/three-wboit
-//
-///////////////////////////////////////////////////////////////////////////////////*/
+/**
+ * MeshWboitMaterial
+ *
+ * Basic material with support for weighted, blended order-independent transparency
+ *
+ */
 
 const WboitStages = {
-    Normal: 0.0,
-    Acummulation: 1.0,
-    Revealage: 2.0,
+	Normal: 0.0,
+	Acummulation: 1.0,
+	Revealage: 2.0,
 };
 
 const WboitBasicShader = {
 
-    // based on MeshBasicMaterial
-    // https://github.com/mrdoob/three.js/blob/dev/src/materials/MeshBasicMaterial.js
-    // https://github.com/mrdoob/three.js/blob/dev/src/renderers/shaders/ShaderLib.js
-    // https://github.com/mrdoob/three.js/blob/dev/src/renderers/shaders/ShaderLib/meshbasic.glsl.js
+	// based on MeshBasicMaterial
+	// https://github.com/mrdoob/three.js/blob/dev/src/materials/MeshBasicMaterial.js
+	// https://github.com/mrdoob/three.js/blob/dev/src/renderers/shaders/ShaderLib.js
+	// https://github.com/mrdoob/three.js/blob/dev/src/renderers/shaders/ShaderLib/meshbasic.glsl.js
 
 	uniforms: UniformsUtils.merge( [
-        {
-            renderStage: { value: 0.0 },
-            weight: { value: 1.0 },
-        },
+		{
+			renderStage: { value: 0.0 },
+			weight: { value: 1.0 },
+		},
 		UniformsLib.common,
 		UniformsLib.specularmap,
 		UniformsLib.envmap,
@@ -43,183 +39,162 @@ const WboitBasicShader = {
 
 	vertexShader: /* glsl */`
 
-        precision highp float;
-        precision highp int;
+		// MeshBasicMaterial
 
-        // MeshBasicMaterial
+		#include <common>
+		#include <uv_pars_vertex>
+		#include <uv2_pars_vertex>
+		#include <envmap_pars_vertex>
+		#include <color_pars_vertex>
+		#include <fog_pars_vertex>
+		#include <morphtarget_pars_vertex>
+		#include <skinning_pars_vertex>
+		#include <logdepthbuf_pars_vertex>
+		#include <clipping_planes_pars_vertex>
 
-        #include <common>
-        #include <uv_pars_vertex>
-        #include <uv2_pars_vertex>
-        #include <envmap_pars_vertex>
-        #include <color_pars_vertex>
-        #include <fog_pars_vertex>
-        #include <morphtarget_pars_vertex>
-        #include <skinning_pars_vertex>
-        #include <logdepthbuf_pars_vertex>
-        #include <clipping_planes_pars_vertex>
+		void main() {
 
-        // MeshWboitMaterial
+			// MeshBasicMaterial
 
-        varying vec2 vHighPrecisionZW;
+			#include <uv_vertex>
+			#include <uv2_vertex>
+			#include <color_vertex>
+			#include <morphcolor_vertex>
 
-        void main() {
+			#if defined ( USE_ENVMAP ) || defined ( USE_SKINNING )
 
-            // MeshBasicMaterial
+				#include <beginnormal_vertex>
+				#include <morphnormal_vertex>
+				#include <skinbase_vertex>
+				#include <skinnormal_vertex>
+				#include <defaultnormal_vertex>
 
-            #include <uv_vertex>
-            #include <uv2_vertex>
-            #include <color_vertex>
-            #include <morphcolor_vertex>
+			#endif
 
-            #if defined ( USE_ENVMAP ) || defined ( USE_SKINNING )
+			#include <begin_vertex>
+			#include <morphtarget_vertex>
+			#include <skinning_vertex>
+			#include <project_vertex>
+			#include <logdepthbuf_vertex>
+			#include <clipping_planes_vertex>
 
-                #include <beginnormal_vertex>
-                #include <morphnormal_vertex>
-                #include <skinbase_vertex>
-                #include <skinnormal_vertex>
-                #include <defaultnormal_vertex>
+			#include <worldpos_vertex>
+			#include <envmap_vertex>
+			#include <fog_vertex>
 
-            #endif
-
-            #include <begin_vertex>
-            #include <morphtarget_vertex>
-            #include <skinning_vertex>
-            #include <project_vertex>
-            #include <logdepthbuf_vertex>
-            #include <clipping_planes_vertex>
-
-            #include <worldpos_vertex>
-            #include <envmap_vertex>
-            #include <fog_vertex>
-
-            // MeshWboitMaterial
-
-            vHighPrecisionZW = gl_Position.zw;
-
-        }
-
-    `,
+		}`,
 
 	fragmentShader: /* glsl */`
 
-        precision highp float;
-        precision highp int;
+		precision highp float;
+		precision highp int;
 
-        // MeshBasicMaterial
+		// MeshBasicMaterial
 
-        uniform vec3 diffuse;
-        uniform float opacity;
+		uniform vec3 diffuse;
+		uniform float opacity;
 
-        #ifndef FLAT_SHADED
+		#ifndef FLAT_SHADED
 
-            varying vec3 vNormal;
+			varying vec3 vNormal;
 
-        #endif
+		#endif
 
-        #include <common>
-        #include <dithering_pars_fragment>
-        #include <color_pars_fragment>
-        #include <uv_pars_fragment>
-        #include <uv2_pars_fragment>
-        #include <map_pars_fragment>
-        #include <alphamap_pars_fragment>
-        #include <alphatest_pars_fragment>
-        #include <aomap_pars_fragment>
-        #include <lightmap_pars_fragment>
-        #include <envmap_common_pars_fragment>
-        #include <envmap_pars_fragment>
-        #include <fog_pars_fragment>
-        #include <specularmap_pars_fragment>
-        #include <logdepthbuf_pars_fragment>
-        #include <clipping_planes_pars_fragment>
+		#include <common>
+		#include <dithering_pars_fragment>
+		#include <color_pars_fragment>
+		#include <uv_pars_fragment>
+		#include <uv2_pars_fragment>
+		#include <map_pars_fragment>
+		#include <alphamap_pars_fragment>
+		#include <alphatest_pars_fragment>
+		#include <aomap_pars_fragment>
+		#include <lightmap_pars_fragment>
+		#include <envmap_common_pars_fragment>
+		#include <envmap_pars_fragment>
+		#include <fog_pars_fragment>
+		#include <specularmap_pars_fragment>
+		#include <logdepthbuf_pars_fragment>
+		#include <clipping_planes_pars_fragment>
 
-        // MeshWboitMaterial
+		// MeshWboitMaterial
 
-        varying vec2 vHighPrecisionZW;
+		uniform float renderStage;
+		uniform float weight;
 
-        uniform float renderStage;
-        uniform float weight;
+		void main() {
 
-        void main() {
+			// MeshBasicMaterial
 
-            // MeshBasicMaterial
+			#include <clipping_planes_fragment>
 
-            #include <clipping_planes_fragment>
+			vec4 diffuseColor = vec4( diffuse, opacity );
 
-            vec4 diffuseColor = vec4( diffuse, opacity );
+			#include <logdepthbuf_fragment>
+			#include <map_fragment>
+			#include <color_fragment>
+			#include <alphamap_fragment>
+			#include <alphatest_fragment>
+			#include <specularmap_fragment>
 
-            #include <logdepthbuf_fragment>
-            #include <map_fragment>
-            #include <color_fragment>
-            #include <alphamap_fragment>
-            #include <alphatest_fragment>
-            #include <specularmap_fragment>
+			ReflectedLight reflectedLight = ReflectedLight( vec3( 0.0 ), vec3( 0.0 ), vec3( 0.0 ), vec3( 0.0 ) );
 
-            ReflectedLight reflectedLight = ReflectedLight( vec3( 0.0 ), vec3( 0.0 ), vec3( 0.0 ), vec3( 0.0 ) );
+			// accumulation (baked indirect lighting only)
 
-            // accumulation (baked indirect lighting only)
+			#ifdef USE_LIGHTMAP
 
-            #ifdef USE_LIGHTMAP
+				vec4 lightMapTexel = texture2D( lightMap, vUv2 );
+				reflectedLight.indirectDiffuse += lightMapTexel.rgb * lightMapIntensity * RECIPROCAL_PI;
 
-                vec4 lightMapTexel = texture2D( lightMap, vUv2 );
-                reflectedLight.indirectDiffuse += lightMapTexel.rgb * lightMapIntensity * RECIPROCAL_PI;
+			#else
 
-            #else
+				reflectedLight.indirectDiffuse += vec3( 1.0 );
 
-                reflectedLight.indirectDiffuse += vec3( 1.0 );
+			#endif
 
-            #endif
+			// modulation
 
-            // modulation
+			#include <aomap_fragment>
 
-            #include <aomap_fragment>
+			reflectedLight.indirectDiffuse *= diffuseColor.rgb;
 
-            reflectedLight.indirectDiffuse *= diffuseColor.rgb;
+			vec3 outgoingLight = reflectedLight.indirectDiffuse;
 
-            vec3 outgoingLight = reflectedLight.indirectDiffuse;
+			#include <envmap_fragment>
+			#include <output_fragment>
+			#include <tonemapping_fragment>
+			#include <encodings_fragment>
+			#include <fog_fragment>
+			#include <premultiplied_alpha_fragment>
+			#include <dithering_fragment>
 
-            #include <envmap_fragment>
-            #include <output_fragment>
-            #include <tonemapping_fragment>
-            #include <encodings_fragment>
-            #include <fog_fragment>
-            #include <premultiplied_alpha_fragment>
-            #include <dithering_fragment>
+			// MeshWboitMaterial
 
-            // MeshWboitMaterial
+			if ( renderStage == ${ WboitStages.Acummulation.toFixed( 1 ) } ) {
 
-            if ( renderStage == ${ WboitStages.Acummulation.toFixed( 1 ) } ) {
+				vec4 accum = gl_FragColor.rgba;
+				float z = gl_FragCoord.z;
 
-                vec4 accum = gl_FragColor.rgba;
+				// // McGuire 10/2013
+				// float w = clamp( pow( ( accum.a * 8.0 + 0.01 ) * ( - z * 0.95 + 1.0 ), 3.0 ) * 1e3, 1e-2, 3e2 );
+				// gl_FragColor = vec4( accum.rgb * accum.a, accum.a ) * w;
 
-                // Higher precision equivalent of gl_FragCoord.z. This assumes depthRange has been left to its default values.
-	            // see: https://github.com/mrdoob/three.js/pull/18696
-                // float z = gl_FragCoord.z;
-                float z = 0.5 * vHighPrecisionZW[0] / vHighPrecisionZW[1] + 0.5;
+				// // Equation #9
+				// float w = accum.a * clamp( 0.03 / ( 1e-5 + pow( abs( z ) / 200.0, 4.0 ) ), 0.01, 300.0 );
+				// gl_FragColor = vec4( accum.rgb * accum.a, accum.a ) * w;
 
-                // // McGuire 10/2013
-                // float w = clamp( pow( ( accum.a * 8.0 + 0.01 ) * ( - z * 0.95 + 1.0 ), 3.0 ) * 1e3, 1e-2, 3e2 );
-                // gl_FragColor = vec4( accum.rgb, accum.a ) * w;
+				// // Stevinz 10/2022
+				float scaleWeight = 0.7 + ( 0.3 * weight );
+				float w = clamp( pow( ( accum.a * 8.0 + 0.001 ) * ( - z * scaleWeight + 1.0 ), 3.0 ) * 1000.0, 0.001, 300.0 );
+				gl_FragColor = vec4( accum.rgb * accum.a, accum.a ) * w;
 
-                // // Equation #9
-                // float w = accum.a * clamp( 0.03 / ( 1e-5 + pow( abs( z ) / 200.0, 4.0 ) ), 0.01, 300.0 );
-                // gl_FragColor = vec4( accum.rgb * accum.a, accum.a ) * w;
+			} else if ( renderStage == ${ WboitStages.Revealage.toFixed( 1 ) } ) {
 
-                // // Stevinz 10/2022
-                float scaleWeight = 0.7 + ( 0.3 * weight );
-                float w = clamp( pow( ( accum.a * 8.0 + 0.001 ) * ( - z * scaleWeight + 1.0 ), 3.0 ) * 1000.0, 0.001, 300.0 );
-                gl_FragColor = vec4( accum.rgb * accum.a, accum.a ) * w;
+				gl_FragColor = vec4( gl_FragColor.a * gl_FragCoord.z );
 
-            } else if ( renderStage == ${ WboitStages.Revealage.toFixed( 1 ) } ) {
+			}
 
-                gl_FragColor = vec4( gl_FragColor.a * gl_FragCoord.z );
-
-            }
-
-        }
-
-    `,
+		}`,
 
 };
 
@@ -240,47 +215,47 @@ class MeshWboitMaterial extends ShaderMaterial {
 		this.defines = {};
 		this.uniforms = UniformsUtils.clone( shader.uniforms );
 		this.vertexShader = shader.vertexShader;
-        this.fragmentShader = shader.fragmentShader;
+		this.fragmentShader = shader.fragmentShader;
 
-        // properties (no uniforms)
+		// properties (no uniforms)
 
 		this.combine = MultiplyOperation;
 
-        this.transparent = true;
+		this.transparent = true;
 
-        this.wireframe = false;
+		this.wireframe = false;
 		this.wireframeLinewidth = 1;
 		this.wireframeLinecap = 'round';
 		this.wireframeLinejoin = 'round';
 
 		this.fog = true;
 
-        // properties (associated w/ uniforms)
+		// properties (associated w/ uniforms)
 
 		const exposePropertyNames = [
 
-            // Material
+			// Material
 
-            'opacity',
+			'opacity',
 
-            // MeshBasicMaterial
+			// MeshBasicMaterial
 
-            'diffuse',
-            'map',
-            'lightMap',
-            'lightMapIntensity',
-            'aoMap',
-            'aoMapIntensity',
-            'specularMap',
-            'alphaMap',
-            'alphaTest',
+			'diffuse',
+			'map',
+			'lightMap',
+			'lightMapIntensity',
+			'aoMap',
+			'aoMapIntensity',
+			'specularMap',
+			'alphaMap',
+			'alphaTest',
 			'envMap',
-            'reflectivity',
-            'refractionRatio',
+			'reflectivity',
+			'refractionRatio',
 
-            // MeshWboitMaterial,
+			// MeshWboitMaterial,
 
-            'weight',
+			'weight',
 
 		];
 
@@ -296,17 +271,17 @@ class MeshWboitMaterial extends ShaderMaterial {
 
 		}
 
-        Object.defineProperty( this, 'color', Object.getOwnPropertyDescriptor( this, 'diffuse' ) );
+		Object.defineProperty( this, 'color', Object.getOwnPropertyDescriptor( this, 'diffuse' ) );
 
 		this.setValues( parameters );
 
 	}
 
-    copy( source ) {
+	copy( source ) {
 
 		super.copy( source );
 
-        // MeshBasicMaterial
+		// MeshBasicMaterial
 
 		this.color.copy( source.color );
 
@@ -334,9 +309,9 @@ class MeshWboitMaterial extends ShaderMaterial {
 
 		this.fog = source.fog;
 
-        // MeshWboitMaterial
+		// MeshWboitMaterial
 
-        this.weight = source.weight;
+		this.weight = source.weight;
 
 		return this;
 
@@ -344,70 +319,93 @@ class MeshWboitMaterial extends ShaderMaterial {
 
 }
 
-/** /////////////////////////////////////////////////////////////////////////////////
-//
-// @description WboitCompositeShader
-// @about       Full-screen composite shader for WBOIT for use with WboitPass
-// @author      Stephens Nunnally <@stevinz>
-// @license     MIT - Copyright (c) 2022 Stephens Nunnally and Scidian Software
-// @source      https://github.com/stevinz/three-wboit
-//
-///////////////////////////////////////////////////////////////////////////////////*/
+/**
+ * Combine accumulation and revealage for weighted, blended order-independent transparency
+ */
 
 const WboitCompositeShader = {
 
 	uniforms: {
 
-        'tAccumulation': { value: null },
-        'tRevealage': { value: null },
+		'tAccumulation': { value: null },
+		'tRevealage': { value: null }
 
 	},
 
 	vertexShader: /* glsl */`
 
-        precision highp float;
-        precision highp int;
+		varying vec2 vUv;
 
-        varying vec2 vUv;
+		void main() {
 
-        void main() {
+			vUv = uv;
+			gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
 
-            vUv = uv;
-            gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
-
-        }
-
-    `,
+		}`,
 
 	fragmentShader: /* glsl */`
 
-        precision highp float;
-        precision highp int;
+		precision highp float;
+		precision highp int;
 
-        varying vec2 vUv;
+		varying vec2 vUv;
 
-        uniform sampler2D tAccumulation;
-        uniform sampler2D tRevealage;
+		uniform sampler2D tAccumulation;
+		uniform sampler2D tRevealage;
 
-        float EPSILON = 0.00001;
+		float EPSILON = 0.00001;
 
-        bool fuzzyEqual( float a, float b ) {
-            return abs( a - b ) <= ( abs( a ) < abs( b ) ? abs( b ) : abs( a ) ) * EPSILON;
-        }
+		bool fuzzyEqual( float a, float b ) {
 
-        void main() {
+			return abs( a - b ) <= ( abs( a ) < abs( b ) ? abs( b ) : abs( a ) ) * EPSILON;
 
-            float reveal = texture2D( tRevealage, vUv ).r;
-            if ( fuzzyEqual( reveal, 1.0 ) ) discard;
+		}
 
-            vec4 accum = texture2D( tAccumulation, vUv );
+		void main() {
 
-            vec4 composite = vec4( accum.rgb / clamp( accum.a, 0.0001, 50000.0 ), reveal );
-            gl_FragColor = clamp( composite, 0.01, 300.0 );
+			float reveal = texture2D( tRevealage, vUv ).r;
+			if ( fuzzyEqual( reveal, 1.0 ) ) discard;
 
-        }
+			vec4 accum = texture2D( tAccumulation, vUv );
 
-    `,
+			vec4 composite = vec4( accum.rgb / clamp( accum.a, 0.0001, 50000.0 ), reveal );
+			gl_FragColor = clamp( composite, 0.01, 300.0 );
+
+		}`,
+
+};
+
+/**
+ * Color fill shader
+ */
+
+const FillShader = {
+
+	uniforms: {
+
+		'color': { value: new Color( 0xffffff ) },
+		'opacity': { value: 1.0 }
+
+	},
+
+	vertexShader: /* glsl */`
+
+		void main() {
+
+			gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+
+		}`,
+
+	fragmentShader: /* glsl */`
+
+		uniform vec3 color;
+		uniform float opacity;
+
+		void main() {
+
+			gl_FragColor = vec4( color, opacity );
+
+		}`
 
 };
 
@@ -480,7 +478,13 @@ class WboitPass extends Pass {
         this.compositePass.material.blendSrc = THREE.OneMinusSrcAlphaFactor;
         this.compositePass.material.blendDst = THREE.SrcAlphaFactor;
 
-        const testPass = new ShaderPass( BasicShader );
+        const testPass = new ShaderPass( FillShader );
+        const testR = 1.0;
+        const testG = 1.0;
+        const testB = 1.0;
+        const testA = 0.0;
+        testPass.material.uniforms[ 'color' ].value = new THREE.Color( testR, testG, testB );
+        testPass.material.uniforms[ 'opacity' ].value = testA;
         testPass.material.blending = THREE.CustomBlending;
         testPass.material.blendEquation = THREE.AddEquation;
         testPass.material.blendSrc = THREE.OneFactor;
@@ -499,12 +503,15 @@ class WboitPass extends Pass {
         const oldClearAlpha = renderer.getClearAlpha();
         renderer.getClearColor( this._oldClearColor );
 
-        const targetTypes = [ THREE.FloatType, THREE.HalfFloatType, THREE.UnsignedIntType, THREE.UnsignedByteType ];
-        const targetGlTypes = [ gl.FLOAT, gl.HALF_FLOAT, gl.UNSIGNED_INT, gl.UNSIGNED_BYTE ];
-        const targetBuffers = [ new Float32Array( 4 ), new Float32Array( 4 ), new Uint32Array( 4 ), new Uint8Array( 4 ) ];
-        const targetDivisor = [ 1, 1, 255, 255 ];
+        const targetTypes = [ THREE.FloatType, THREE.HalfFloatType, THREE.UnsignedByteType ];
+        const targetGlTypes = [ gl.FLOAT, gl.HALF_FLOAT, gl.UNSIGNED_BYTE ];
+        const targetBuffers = [ new Float32Array( 4 ), new Uint16Array( 4 ), new Uint8Array( 4 ) ];
+        const targetDivisor = [ 1, 15360, 255 ];
 
         let targetType;
+
+        // gl.getExtension( 'EXT_color_buffer_float' ) lacking support, see:
+        // https://stackoverflow.com/questions/28827511/webgl-ios-render-to-floating-point-texture
 
         for ( let i = 0; i < targetTypes.length; i ++ ) {
 
@@ -529,7 +536,10 @@ class WboitPass extends Pass {
             function fuzzyCompare( a, b, epsilon = 0.01 ) { return Math.abs( a - b ) < epsilon; }
 
             let complete = gl.checkFramebufferStatus( gl.FRAMEBUFFER ) === gl.FRAMEBUFFER_COMPLETE;
-            complete = complete && rgba[ 0 ] === 1 && rgba[ 1 ] === 0 && rgba[ 2 ] === 0 && fuzzyCompare( rgba[ 3 ], 0.5 );
+            complete = complete && fuzzyCompare( rgba[ 0 ], testR );
+            complete = complete && fuzzyCompare( rgba[ 1 ], testG );
+            complete = complete && fuzzyCompare( rgba[ 2 ], testB );
+            complete = complete && fuzzyCompare( rgba[ 3 ], testA );
             complete = complete || i === targetTypes.length - 1;
 
             testTarget.dispose();

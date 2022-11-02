@@ -22,8 +22,8 @@ import * as THREE from 'three';
 import { Pass } from 'three/addons/postprocessing/Pass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 
-import { BasicShader } from 'three/addons/shaders/BasicShader.js';
 import { CopyShader } from 'three/addons/shaders/CopyShader.js';
+import { FillShader } from './shaders/FillShader.js';
 import { WboitCompositeShader } from './shaders/WboitCompositeShader.js';
 import { WboitStages } from './materials/MeshWboitMaterial.js';
 
@@ -84,7 +84,13 @@ class WboitPass extends Pass {
         this.compositePass.material.blendSrc = THREE.OneMinusSrcAlphaFactor;
         this.compositePass.material.blendDst = THREE.SrcAlphaFactor;
 
-        const testPass = new ShaderPass( BasicShader );
+        const testPass = new ShaderPass( FillShader );
+        const testR = 1.0;
+        const testG = 1.0;
+        const testB = 1.0;
+        const testA = 0.0;
+        testPass.material.uniforms[ 'color' ].value = new THREE.Color( testR, testG, testB );
+        testPass.material.uniforms[ 'opacity' ].value = testA;
         testPass.material.blending = THREE.CustomBlending;
         testPass.material.blendEquation = THREE.AddEquation;
         testPass.material.blendSrc = THREE.OneFactor;
@@ -103,12 +109,15 @@ class WboitPass extends Pass {
         const oldClearAlpha = renderer.getClearAlpha();
         renderer.getClearColor( this._oldClearColor );
 
-        const targetTypes = [ THREE.FloatType, THREE.HalfFloatType, THREE.UnsignedIntType, THREE.UnsignedByteType ];
-        const targetGlTypes = [ gl.FLOAT, gl.HALF_FLOAT, gl.UNSIGNED_INT, gl.UNSIGNED_BYTE ];
-        const targetBuffers = [ new Float32Array( 4 ), new Float32Array( 4 ), new Uint32Array( 4 ), new Uint8Array( 4 ) ];
-        const targetDivisor = [ 1, 1, 255, 255 ];
+        const targetTypes = [ THREE.FloatType, THREE.HalfFloatType, THREE.UnsignedByteType ];
+        const targetGlTypes = [ gl.FLOAT, gl.HALF_FLOAT, gl.UNSIGNED_BYTE ];
+        const targetBuffers = [ new Float32Array( 4 ), new Uint16Array( 4 ), new Uint8Array( 4 ) ];
+        const targetDivisor = [ 1, 15360, 255 ];
 
         let targetType;
+
+        // gl.getExtension( 'EXT_color_buffer_float' ) lacking support, see:
+        // https://stackoverflow.com/questions/28827511/webgl-ios-render-to-floating-point-texture
 
         for ( let i = 0; i < targetTypes.length; i ++ ) {
 
@@ -133,7 +142,10 @@ class WboitPass extends Pass {
             function fuzzyCompare( a, b, epsilon = 0.01 ) { return Math.abs( a - b ) < epsilon; }
 
             let complete = gl.checkFramebufferStatus( gl.FRAMEBUFFER ) === gl.FRAMEBUFFER_COMPLETE;
-            complete = complete && rgba[ 0 ] === 1 && rgba[ 1 ] === 0 && rgba[ 2 ] === 0 && fuzzyCompare( rgba[ 3 ], 0.5 );
+            complete = complete && fuzzyCompare( rgba[ 0 ], testR );
+            complete = complete && fuzzyCompare( rgba[ 1 ], testG );
+            complete = complete && fuzzyCompare( rgba[ 2 ], testB );
+            complete = complete && fuzzyCompare( rgba[ 3 ], testA );
             complete = complete || i === targetTypes.length - 1;
 
             testTarget.dispose();
