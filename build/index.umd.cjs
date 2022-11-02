@@ -64,6 +64,8 @@
         precision highp float;
         precision highp int;
 
+        // MeshBasicMaterial
+
         #include <common>
         #include <uv_pars_vertex>
         #include <uv2_pars_vertex>
@@ -75,7 +77,13 @@
         #include <logdepthbuf_pars_vertex>
         #include <clipping_planes_pars_vertex>
 
+        // MeshWboitMaterial
+
+        varying vec2 vHighPrecisionZW;
+
         void main() {
+
+            // MeshBasicMaterial
 
             #include <uv_vertex>
             #include <uv2_vertex>
@@ -103,6 +111,10 @@
             #include <envmap_vertex>
             #include <fog_vertex>
 
+            // MeshWboitMaterial
+
+            vHighPrecisionZW = gl_Position.zw;
+
         }
 
     `,
@@ -111,11 +123,6 @@
 
         precision highp float;
         precision highp int;
-
-        // MeshWboitMaterial
-
-        uniform float renderStage;
-        uniform float weight;
 
         // MeshBasicMaterial
 
@@ -145,7 +152,16 @@
         #include <logdepthbuf_pars_fragment>
         #include <clipping_planes_pars_fragment>
 
+        // MeshWboitMaterial
+
+        varying vec2 vHighPrecisionZW;
+
+        uniform float renderStage;
+        uniform float weight;
+
         void main() {
+
+            // MeshBasicMaterial
 
             #include <clipping_planes_fragment>
 
@@ -189,12 +205,16 @@
             #include <premultiplied_alpha_fragment>
             #include <dithering_fragment>
 
-            // wboit
+            // MeshWboitMaterial
 
             if ( renderStage == ${ WboitStages.Acummulation.toFixed( 1 ) } ) {
 
                 vec4 accum = gl_FragColor.rgba;
-                float z = gl_FragCoord.z;
+
+                // Higher precision equivalent of gl_FragCoord.z. This assumes depthRange has been left to its default values.
+	            // see: https://github.com/mrdoob/three.js/pull/18696
+                // float z = gl_FragCoord.z;
+                float z = 0.5 * vHighPrecisionZW[0] / vHighPrecisionZW[1] + 0.5;
 
                 // // McGuire 10/2013
                 // float w = clamp( pow( ( accum.a * 8.0 + 0.01 ) * ( - z * 0.95 + 1.0 ), 3.0 ) * 1e3, 1e-2, 3e2 );
