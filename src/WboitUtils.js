@@ -11,8 +11,8 @@ class WboitUtils {
         for ( let i = 0; i < materials.length; i ++ ) {
 
             let material = materials[i];
-            if ( material.isMeshWboitMaterial ) continue;
-            material.isMeshWboitMaterial = true;
+            if ( material.wboitEnabled ) continue;
+            material.wboitEnabled = true;
 
             const existingOnBeforeCompile = material.onBeforeCompile;
 
