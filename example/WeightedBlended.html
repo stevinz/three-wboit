@@ -32,7 +32,7 @@
                  "imports": {
                     "three": "https://unpkg.com/three@0.146.0/build/three.module.js",
                     "three/addons/": "https://unpkg.com/three@0.146.0/examples/jsm/",
-                    "three-wboit": "https://unpkg.com/three-wboit@1.0.8/build/index.module.js"
+                    "three-wboit": "https://unpkg.com/three-wboit@1.0.9/build/index.module.js"
                 }
             }
         </script>
@@ -51,12 +51,12 @@
             import { TexturePass } from 'three/addons/postprocessing/TexturePass.js';
 
             // // NPM
-            import { MeshWboitMaterial } from 'three-wboit';
-            import { WboitPass } from 'three-wboit';
+            // import { MeshWboitMaterial } from 'three-wboit';
+            // import { WboitPass } from 'three-wboit';
 
             // // Local
-            // import { MeshWboitMaterial } from '../src/materials/MeshWboitMaterial.js';
-            // import { WboitPass } from '../src/WboitPass.js';
+            import { MeshWboitMaterial } from '../src/materials/MeshWboitMaterial.js';
+            import { WboitPass } from '../src/WboitPass.js';
 
             let camera, controls, renderer, texturePass, wboitPass;
 

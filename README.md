@@ -8,11 +8,13 @@ Weighted, Blended Order Independent Transparency ([paper](http://jcgt.org/publis
 
 ## More Info
 
-There are several common techniques available for [order independent transparency](https://learnopengl.com/Guest-Articles/2020/OIT/Introduction). This implementation uses WBOIT, both for it's high performance and also compatibility on slower hardware. This implementation is WebGL 1 compatible and mobile friendly.
+There are several common techniques available for [order independent transparency](https://learnopengl.com/Guest-Articles/2020/OIT/Introduction). This implementation uses Weighted, Blended Order-Indepent Transparency (WBOIT), both for it's high performance and also compatibility on slower hardware. This implementation is WebGL 1 compatible and mobile friendly.
 
-One of the biggest advantages of order independent transparency is for the rendering of highly detailed transparent models. Typically when rendering such a model it is common for some faces to be depth culled. When rendering with WBOIT, all faces will be visible. WBOIT is approximate, though, and while it provides good results it may not be appropriate for all use cases.
+One of the biggest advantages of order independent transparency is for the rendering of detailed transparent models. Typically when rendering such a model, it is common for some faces to be depth culled. When rendering with WBOIT, all faces will be visible. WBOIT is approximate, though, and while it provides good results it may not be appropriate for all use cases.
 
-There are a variety of weight functions available when rendering with WBOIT. This is partially due to inconsistencies in rendering overlapping pixels at varying depths. Some weight functions are better at incorporating camera near / far planes, some are better at handling larger groups of overlapping triangles. This implementation includes a weight modifier within `MeshWboitMaterial` that attempts to adjust the weight function for both opacity and color depending on the depth of the fragments.
+There are a variety of weight functions available when rendering with WBOIT. This is partially due to inconsistencies in rendering overlapping pixels at varying depths. Some weight functions are better at incorporating camera near / far planes, some are better at handling larger groups of overlapping triangles. This implementation includes a `weight` modifier within `MeshWboitMaterial` that attempts to adjust the weight function for both opacity and color depending on the depth of the fragments.
+
+The biggest downside of this method is that due to the blending method used, as `opacity` approaches `1.0` objects still retain an artifically high amount of transparency. WBOIT enabled materials can be made opaque during the render pass by setting the material property `transparent` to `false`.
 
 ## Install
 
