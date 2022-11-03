@@ -4,39 +4,51 @@
 
 class WboitUtils {
 
-    static enableMaterial( material ) {
+	static enable( objectOrMaterial ) {
 
-        let materials = Array.isArray( object.material ) ? object.material : [ object.material ];
+		if ( objectOrMaterial.isObject3D ) {
 
-        for ( let i = 0; i < materials.length; i ++ ) {
+			objectOrMaterial.traverse( ( child ) => {
 
-            let material = materials[i];
-            if ( material.wboitEnabled ) continue;
-            material.wboitEnabled = true;
+				if ( child.material ) WboitUtils.enable( child.material );
 
-            const existingOnBeforeCompile = material.onBeforeCompile;
+			});
 
-            material.onBeforeCompile = function( shader, renderer ) {
+		}
 
-                if (typeof existingOnBeforeCompile === 'function') existingOnBeforeCompile( shader, renderer );
+		let materials = Array.isArray( objectOrMaterial ) ? objectOrMaterial : [ objectOrMaterial ];
 
-                shader.fragmentShader = shader.fragmentShader.replace( /}$/gm, `
-                        gl_FragColor = vec4( 1.0, 1.0, 1.0, 1.0 );
-                    }
-                ` );
+		for ( let i = 0; i < materials.length; i ++ ) {
 
-            }
+			const material = materials[i];
+			if ( ! material.isMaterial ) continue;
+			if ( material.wboitEnabled ) continue;
 
-            material.needsUpdate = true;
+			material.wboitEnabled = true;
+
+			const existingOnBeforeCompile = material.onBeforeCompile;
+
+			material.onBeforeCompile = function( shader, renderer ) {
+
+				if (typeof existingOnBeforeCompile === 'function') existingOnBeforeCompile( shader, renderer );
+
+				shader.fragmentShader = shader.fragmentShader.replace( /}$/gm, `
+						gl_FragColor = vec4( 1.0, 1.0, 1.0, 1.0 );
+					}
+				` );
+
+			}
+
+			material.needsUpdate = true;
 
 
 
 
-            console.log( material );
+			console.log( material );
 
-        }
+		}
 
-    }
+	}
 
 }
 

@@ -183,17 +183,17 @@ class WboitPass extends Pass {
 			rgba[ 2 ] /= targetDivisor[ i ];
 			rgba[ 3 ] /= targetDivisor[ i ];
 
-			function fuzzyCompare( a, b, epsilon = 0.01 ) {
+			function fuzzyEqual( a, b, epsilon = 0.01 ) {
 
-				return Math.abs( a - b ) < epsilon;
+				return ( ( a < ( b + epsilon ) ) && ( a > ( b - epsilon ) ) );
 
 			}
 
 			let complete = gl.checkFramebufferStatus( gl.FRAMEBUFFER ) === gl.FRAMEBUFFER_COMPLETE;
-			complete = complete && fuzzyCompare( rgba[ 0 ], testR );
-			complete = complete && fuzzyCompare( rgba[ 1 ], testG );
-			complete = complete && fuzzyCompare( rgba[ 2 ], testB );
-			complete = complete && fuzzyCompare( rgba[ 3 ], testA );
+			complete = complete && fuzzyEqual( rgba[ 0 ], testR );
+			complete = complete && fuzzyEqual( rgba[ 1 ], testG );
+			complete = complete && fuzzyEqual( rgba[ 2 ], testB );
+			complete = complete && fuzzyEqual( rgba[ 3 ], testA );
 			complete = complete || i === targetTypes.length - 1;
 
 			testTarget.dispose();
