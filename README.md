@@ -5,6 +5,7 @@ Weighted, Blended Order Independent Transparency ([paper](http://jcgt.org/publis
 ## Examples
 
 - <a href='https://stevinz.github.io/three-wboit/WeightedBlended.html'>Transparent Scene Demos</a>
+- <a href='https://stevinz.github.io/three-wboit/StandardMaterials.html'>MeshStandardMaterial Patch Demo</a>
 
 ## More Info
 
@@ -71,6 +72,22 @@ render() {
     wboitPass.render( renderer );
 
 }
+
+```
+
+## Patching Materials
+
+To use `WboitPass` with any existing material, use the included utility function `WboitUtils.patch()`
+
+```javascript
+import * as THREE from 'three';
+
+import { WboitUtils } from 'three-wboit';
+
+const material = new THREE.MeshStandardMaterial();
+WboitUtils.patch( material );
+
+const myMesh = new THREE.Mesh( new THREE.BoxGeometry(), material );
 
 ```
 
