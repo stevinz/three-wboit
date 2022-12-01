@@ -3,7 +3,7 @@
 // @description WboitRenderer
 // @about       Weighted, blended order-independent transparency renderer for use with three.js WebGLRenderer
 // @author      Stephens Nunnally <@stevinz>
-// @license     MIT - Copyright (c) 2022 Stephens Nunnally and Scidian Software
+// @license     MIT - Copyright (c) 2022 Stephens Nunnally and Scidian Studios
 // @source      https://github.com/stevinz/three-wboit
 //
 //      See end of file for license details and acknowledgements
