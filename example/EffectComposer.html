@@ -53,21 +53,22 @@
             import { TexturePass } from 'three/addons/postprocessing/TexturePass.js';
 
             // // NPM
-            import { MeshWboitMaterial } from 'three-wboit';
-            import { WboitPass } from 'three-wboit';
-            import { WboitUtils } from 'three-wboit';
+            // import { MeshWboitMaterial } from 'three-wboit';
+            // import { WboitPass } from 'three-wboit';
+            // import { WboitUtils } from 'three-wboit';
 
             // // Local
-            // import { MeshWboitMaterial } from '../src/materials/MeshWboitMaterial.js';
-            // import { WboitPass } from '../src/WboitPass.js';
-            // import { WboitUtils } from '../src/WboitUtils.js';
+            import { MeshWboitMaterial } from '../src/materials/MeshWboitMaterial.js';
+            import { WboitPass } from '../src/WboitPass.js';
+            import { WboitUtils } from '../src/WboitUtils.js';
 
-            let gl, scene, camera, controls, renderer
+            let gl, scene, camera, controls, renderer, ambientLight;
             let composer, renderTarget, clearColor = new THREE.Color();
             let texturePass, wboitPass, gammaPass, shaderPass;
 
             const params = {
                 enabled: true,
+                ambient: 1.0,
                 background: true,
                 gamma: false,
                 transparent: true,
@@ -96,13 +97,9 @@
 
                 scene = new THREE.Scene();
 
-                const ambientLight = new THREE.AmbientLight( 0xffffff, 1 );
-                const directionalLight = new THREE.DirectionalLight( 0xffffff, 1 );
-                const hemisphereLight = new THREE.HemisphereLight();
-
-                scene.add( ambientLight, directionalLight, hemisphereLight );
-
-                directionalLight.position.set( 0.5, 0, 0.866 );
+                ambientLight = new THREE.AmbientLight( 0xffffff, 1 ) ;
+                scene.add( ambientLight );
+                scene.add( new THREE.Mesh( new THREE.BoxGeometry(), new THREE.MeshBasicMaterial( { color: 0xff0000 } ) ) );
 
                 // materials
 
@@ -110,69 +107,51 @@
 
                 const coloredWboitMaterial = new MeshWboitMaterial( { vertexColors: true } );
 
-                // center
-
-                function centerObject( object ) {
-
-                    const center = new THREE.Vector3();
-                    const box = new THREE.Box3;
-                    box.expandByObject( object );
-                    box.getCenter( center );
-                    object.position.sub( center );
-
-                }
-
-                // model
-
-                const loader = new GLTFLoader();
-                const dracoLoader = new DRACOLoader();
-                dracoLoader.setDecoderPath( 'https://unpkg.com/three@0.146.0/examples/js/libs/draco/' );
-                loader.setDRACOLoader( dracoLoader );
-
-                loader.load( './models/scotch.glb', function ( gltf ) {
-
-                    gltf.scene.traverse( ( object ) => {
-
-                        if ( object.material ) {
-
-                            if ( object.material.map ) {
-
-                                // LinearEncoding = 3000;
-                                // sRGBEncoding = 3001;
-
-                                object.material.map.encoding = 3001;
-
-                            }
-
-                            WboitUtils.patch( object.material );
-
-                        }
-
-                    });
-
-                    scene.add( gltf.scene );
-
-                    gltf.scene.scale.multiplyScalar( 3.0 );
-                    centerObject( gltf.scene );
-
-                    updateSceneParameters();
-
-                }, undefined, error => console.error( error ) );
-
-                // texture loader
+                // textures
 
                 const textureLoader = new THREE.TextureLoader();
+
+                const backgroundTexture = textureLoader.load( './textures/pz.jpg', ( map ) => {
+
+                    map.encoding = THREE.sRGBEncoding;
+                    onWindowResize()
+
+                });
+
+                const woodTexture = textureLoader.load( './textures/hardwood2_diffuse.jpg', ( map ) => {
+
+                    map.encoding = THREE.sRGBEncoding;
+                    onWindowResize()
+
+                });
+
+                // objects
+
+
+                const woodMaterial = new THREE.MeshStandardMaterial( {
+
+                    map: woodTexture,
+                    transparent: true,
+                    opacity: 0.75,
+
+                } );
+
+                WboitUtils.patch( woodMaterial );
+
+                scene.add( new THREE.Mesh( new THREE.BoxGeometry( 2, 2, 2 ), woodMaterial ) );
 
                 // background texture pass
 
                 texturePass = new TexturePass();
                 texturePass.clear = false;
                 texturePass.renderToScreen = false;
-                texturePass.map = textureLoader.load( './textures/hardwood2_diffuse.jpg', map => onWindowResize() );
+                texturePass.map = backgroundTexture;
 
                 const textureRender = texturePass.render.bind(texturePass);
                 texturePass.render = function( renderer, writeBuffer, readBuffer /*, deltaTime, maskActive */ ) {
+
                     textureRender( renderer, readBuffer, writeBuffer ); /* reverse write / read buffers */
+
                 };
 
                 // order independent transparency pass
@@ -202,6 +181,7 @@
 
                 const folder1 = gui.addFolder( 'Scene Params' );
 
+                folder1.add( params, 'ambient', 0, 2 ).onFinishChange( updateSceneParameters );
                 folder1.add( params, 'background' ).onFinishChange( updateSceneParameters );
                 folder1.add( params, 'gamma' ).onFinishChange( updateSceneParameters );
 
@@ -224,6 +204,10 @@
 
             function updateSceneParameters() {
 
+                // update ambient light
+
+                ambientLight.intensity = params.ambient;
+
                 // update materials
 
                 scene.traverse( ( object ) => {
@@ -233,19 +217,18 @@
 
                     for ( let i = 0; i < materials.length; i ++ ) {
 
-                        if ( object.name.includes( 'liquid' ) ) {
+                        if ( materials[ i ].wboitEnabled ) {
 
-                            materials[ i ].wboitEnabled = false;
                             materials[ i ].transparent = params.transparent;
-                            materials[ i ].opacity = 0.9;
+                            materials[ i ].weight = params.weight;
 
                         }
 
-                        if ( materials[ i ].wboitEnabled !== true ) continue;
+                        if ( materials[ i ].transparent ) {
 
-                        materials[ i ].transparent = params.transparent;
-                        materials[ i ].opacity = params.opacity;
-                        materials[ i ].weight = params.weight;
+                            materials[ i ].opacity = params.opacity;
+
+                        }
 
                     }
 
