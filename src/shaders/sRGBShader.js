@@ -23,6 +23,10 @@ const sRGBShader = {
 		void main() {
 			vec4 tex = texture2D( tDiffuse, vUv );
 
+			// Set color to fully opaque
+			tex.rgb *= tex.a;
+			tex.a = 1.0;
+
 			// LinearTosRGB( tex );
             gl_FragColor = vec4( mix( pow( tex.rgb, vec3( 0.41666 ) ) * 1.055 - vec3( 0.055 ), tex.rgb * 12.92, vec3( lessThanEqual( tex.rgb, vec3( 0.0031308 ) ) ) ), tex.a );
 		}`
