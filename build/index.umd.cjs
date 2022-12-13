@@ -39,6 +39,41 @@
 	};
 
 	/**
+	 * sRGBShader
+	 */
+
+	const sRGBShader = {
+
+		uniforms: {
+
+			'tDiffuse': { value: null }
+
+		},
+
+		vertexShader: /* glsl */`
+		varying vec2 vUv;
+		void main() {
+			vUv = uv;
+			gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+		}`,
+
+		fragmentShader: /* glsl */`
+		uniform sampler2D tDiffuse;
+		varying vec2 vUv;
+		void main() {
+			vec4 tex = texture2D( tDiffuse, vUv );
+
+			// Set color to fully opaque
+			tex.rgb *= tex.a;
+			tex.a = 1.0;
+
+			// LinearTosRGB( tex );
+            gl_FragColor = vec4( mix( pow( tex.rgb, vec3( 0.41666 ) ) * 1.055 - vec3( 0.055 ), tex.rgb * 12.92, vec3( lessThanEqual( tex.rgb, vec3( 0.0031308 ) ) ) ), tex.a );
+		}`
+
+	};
+
+	/**
 	 * MeshWboitMaterial
 	 *
 	 * Basic material with support for weighted, blended order-independent transparency
@@ -215,16 +250,15 @@
 
 				/* Equation #9 */
 				// float w = accum.a * clamp( 0.03 / ( 1e-5 + pow( abs( z ) / 200.0, 4.0 ) ), 0.01, 300.0 );
-				// gl_FragColor = vec4( accum.rgb, accum.a ) * w;
 
 				/* McGuire 10/2013 */
 				// float w = clamp( pow( ( accum.a * 8.0 + 0.01 ) * ( - z * 0.95 + 1.0 ), 3.0 ) * 1e3, 1e-2, 3e2 );
-				// gl_FragColor = vec4( accum.rgb, accum.a ) * w;
 
 				/* Stevinz, Adjustable Weight */
 				float scaleWeight = 0.7 + ( 0.3 * weight );
 				float w = clamp( pow( ( accum.a * 8.0 + 0.001 ) * ( - z * scaleWeight + 1.0 ), 3.0 ) * 1000.0, 0.001, 300.0 );
-				gl_FragColor = vec4( accum.rgb, accum.a ) * w;
+
+				gl_FragColor = accum * w;
 
 			} else if ( renderStage == ${ WboitStages.Revealage.toFixed( 1 ) } ) {
 
@@ -436,7 +470,7 @@
 	// @description WboitRenderer
 	// @about       Weighted, blended order-independent transparency renderer for use with three.js WebGLRenderer
 	// @author      Stephens Nunnally <@stevinz>
-	// @license     MIT - Copyright (c) 2022 Stephens Nunnally and Scidian Software
+	// @license     MIT - Copyright (c) 2022 Stephens Nunnally and Scidian Studios
 	// @source      https://github.com/stevinz/three-wboit
 	//
 	//      See end of file for license details and acknowledgements
@@ -446,7 +480,7 @@
 	const _clearColorZero = new three.Color( 0.0, 0.0, 0.0 );
 	const _clearColorOne = new three.Color( 1.0, 1.0, 1.0 );
 
-	const OpaqueShader = {
+	const CopyAlphaTestShader = {
 
 		uniforms: {
 
@@ -512,7 +546,7 @@
 
 			// Passes
 
-			this.opaquePass = new ShaderPass_js.ShaderPass( OpaqueShader );
+			this.opaquePass = new ShaderPass_js.ShaderPass( CopyAlphaTestShader );
 			this.opaquePass.material.depthTest = false;
 			this.opaquePass.material.depthWrite = false;
 			this.opaquePass.material.blending = three.CustomBlending;
@@ -520,7 +554,7 @@
 			this.opaquePass.material.blendSrc = three.OneFactor;
 			this.opaquePass.material.blendDst = three.ZeroFactor;
 
-			this.transparentPass = new ShaderPass_js.ShaderPass( CopyShader_js.CopyShader );
+			this.transparentPass = new ShaderPass_js.ShaderPass( CopyAlphaTestShader );
 			this.transparentPass.material.depthTest = false;
 			this.transparentPass.material.depthWrite = false;
 			this.transparentPass.material.blending = three.CustomBlending;
@@ -861,19 +895,23 @@
 
 			}
 
-			// Render Opaque Objects (copy render to write buffer so we can re-use depth buffer)
+			// Render Opaque Objects
 			changeVisible( true, false, false );
 			renderer.setRenderTarget( this.baseTarget );
 			renderer.setClearColor( _clearColorZero, 0.0 );
 			renderer.clear();
 			renderer.render( scene, this.camera );
+
+			// Copy 'Opaque Render' to write buffer so we can re-use depth buffer
 			this.opaquePass.render( renderer, writeBuffer, this.baseTarget );
 
-			// Render Transparent Objects (copy render to write buffer so we can re-use depth buffer)
+			// Render Transparent Objects
 			changeVisible( false, true, false );
 			renderer.setRenderTarget( this.baseTarget );
 			renderer.clearColor();
 			renderer.render( scene, this.camera );
+
+			// Copy 'Transparent Render' to write buffer so we can re-use depth buffer
 			this.transparentPass.render( renderer, writeBuffer, this.baseTarget );
 
 			// Render Wboit Objects, Accumulation Pass (copy render to write buffer so we can re-use depth buffer)
@@ -1050,7 +1088,8 @@
 
 						float scaleWeight = 0.7 + ( 0.3 * weight );
 						float w = clamp( pow( ( accum.a * 8.0 + 0.001 ) * ( - z * scaleWeight + 1.0 ), 3.0 ) * 1000.0, 0.001, 300.0 );
-						gl_FragColor = vec4( accum.rgb, accum.a ) * w;
+
+						gl_FragColor = accum * w;
 
 					} else if ( renderStage == ${ WboitStages.Revealage.toFixed( 1 ) } ) {
 
@@ -1100,6 +1139,7 @@
 	exports.WboitCompositeShader = WboitCompositeShader;
 	exports.WboitPass = WboitPass;
 	exports.WboitUtils = WboitUtils;
+	exports.sRGBShader = sRGBShader;
 
 }));
 //# sourceMappingURL=index.umd.cjs.map
