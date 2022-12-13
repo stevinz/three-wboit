@@ -43,9 +43,14 @@
 
             import { mergeBufferGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
+            import { CopyShader } from 'three/addons/shaders/CopyShader.js';
             import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+            import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+            import { GammaCorrectionShader } from 'three/addons/shaders/GammaCorrectionShader.js';
             import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
             import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+            import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+            import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
             import { TexturePass } from 'three/addons/postprocessing/TexturePass.js';
 
             // // NPM
@@ -58,11 +63,19 @@
             import { WboitPass } from '../src/WboitPass.js';
             import { WboitUtils } from '../src/WboitUtils.js';
 
-            let gl, scene, camera, controls, renderer, texturePass, wboitPass;
+            let gl, scene, camera, controls, renderer;
+            let composer, clearColor = new THREE.Color();
+            let gammaPass, shaderPass, texturePass, wboitPass;
+
+            let ambientLight, directionalLight, hemisphereLight;
+            let bottle, woodMaterial, woodBox, redBox;
 
             const params = {
+                scene: 'Bottle',
                 enabled: false,
-                background: false,
+                ambient: 1.0,
+                background: true,
+                gamma: false,
                 transparent: true,
                 opacity: 0.75,
                 weight: 1.0,
@@ -78,42 +91,53 @@
                 renderer.autoClear = false;
                 document.body.appendChild( renderer.domElement );
 
+                scene = new THREE.Scene();
+
                 camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 0.10, 100 );
                 camera.position.z = 10;
 
                 controls = new OrbitControls( camera, renderer.domElement );
 
-                // scene
+                // lights
 
-                scene = new THREE.Scene();
-
-                const ambientLight = new THREE.AmbientLight( 0xffffff, 1 );
-                const directionalLight = new THREE.DirectionalLight( 0xffffff, 1 );
-                const hemisphereLight = new THREE.HemisphereLight();
-
-                scene.add( ambientLight, directionalLight, hemisphereLight );
-
+                ambientLight = new THREE.AmbientLight( 0xffffff, 1 );
+                hemisphereLight = new THREE.HemisphereLight();
+                directionalLight = new THREE.DirectionalLight( 0xffffff, 1 );
                 directionalLight.position.set( 0.5, 0, 0.866 );
+
+                // textures
+
+                const textureLoader = new THREE.TextureLoader();
+
+                const backgroundTexture = textureLoader.load( './textures/pz.jpg', ( map ) => {
+
+                    map.encoding = THREE.sRGBEncoding;
+                    onWindowResize()
+
+                });
+
+                const woodTexture = textureLoader.load( './textures/hardwood2_diffuse.jpg', ( map ) => {
+
+                    map.encoding = THREE.sRGBEncoding;
+                    onWindowResize()
+
+                });
 
                 // materials
 
-                const wboitMaterial = new MeshWboitMaterial();
+                woodMaterial = new THREE.MeshStandardMaterial( {
 
-                const coloredWboitMaterial = new MeshWboitMaterial( { vertexColors: true } );
+                    map: woodTexture,
+                    transparent: true,
+                    opacity: 0.75,
 
-                // center
+                } );
 
-                function centerObject( object ) {
+                WboitUtils.patch( woodMaterial );
 
-                    const center = new THREE.Vector3();
-                    const box = new THREE.Box3;
-                    box.expandByObject( object );
-                    box.getCenter( center );
-                    object.position.sub( center );
+                // scene bottle
 
-                }
-
-                // model
+                bottle = new THREE.Object3D();
 
                 const loader = new GLTFLoader();
                 const dracoLoader = new DRACOLoader();
@@ -121,6 +145,8 @@
                 loader.setDRACOLoader( dracoLoader );
 
                 loader.load( './models/scotch.glb', function ( gltf ) {
+
+                    // patch materials
 
                     gltf.scene.traverse( ( object ) => {
 
@@ -132,25 +158,62 @@
 
                     });
 
-                    scene.add( gltf.scene );
-
+                    bottle.add( gltf.scene );
                     gltf.scene.scale.multiplyScalar( 3.0 );
-                    centerObject( gltf.scene );
+
+                    // center model
+
+                    const center = new THREE.Vector3();
+                    const box = new THREE.Box3;
+                    box.expandByObject( gltf.scene );
+                    box.getCenter( center );
+                    gltf.scene.position.sub( center );
+
+                    // update scene parameters
 
                     updateSceneParameters();
 
                 }, undefined, error => console.error( error ) );
 
-                // background
+                // scene wood
 
-                const textureLoader = new THREE.TextureLoader();
+                redBox = new THREE.Mesh( new THREE.BoxGeometry(), new THREE.MeshBasicMaterial( { color: 0xff0000, transparent: true, opacity: 0.5 } ) );
+                woodBox = new THREE.Mesh( new THREE.BoxGeometry( 2, 2, 2 ), woodMaterial );
+
+                // background texture pass
+
                 texturePass = new TexturePass();
-                texturePass.renderToScreen = true;
-                texturePass.map = textureLoader.load( './textures/hardwood2_diffuse.jpg', map => onWindowResize() );
+                texturePass.clear = true;
+                texturePass.renderToScreen = false;
+                texturePass.map = backgroundTexture;
 
-                // wboit pass
+                const textureRender = texturePass.render.bind(texturePass);
+                texturePass.render = function( renderer, writeBuffer, readBuffer /*, deltaTime, maskActive */ ) {
+
+                    textureRender( renderer, readBuffer, writeBuffer ); /* reverse write / read buffers */
+
+                };
+
+                // order independent transparency pass
 
                 wboitPass = new WboitPass( renderer, scene, camera );
+
+                // final render to screen passes
+
+                gammaPass = new ShaderPass( GammaCorrectionShader ); /* sRGBEncoding */
+                gammaPass.enabled = false;
+
+                shaderPass = new ShaderPass( CopyShader ); /* LinearEncoding */
+                shaderPass.enabled = true;
+
+                // effect composer
+
+                composer = new EffectComposer( renderer );
+                composer.addPass( texturePass );
+                composer.addPass( wboitPass );
+                composer.addPass( gammaPass );
+                composer.addPass( shaderPass );
+                composer.render();
 
                 // gui
 
@@ -158,7 +221,10 @@
 
                 const folder1 = gui.addFolder( 'Scene Params' );
 
+                folder1.add( params, 'scene', [ 'Bottle', 'Wood' ] ).onFinishChange( updateScene );
+                folder1.add( params, 'ambient', 0, 2 ).onFinishChange( updateSceneParameters );
                 folder1.add( params, 'background' ).onFinishChange( updateSceneParameters );
+                folder1.add( params, 'gamma' ).onFinishChange( updateSceneParameters );
 
                 const folder2 = gui.addFolder( 'Wboit Params' );
 
@@ -170,15 +236,45 @@
                 // events
 
                 window.addEventListener( 'resize', onWindowResize, false );
-                controls.addEventListener( 'change', render );
 
                 // initialize params
 
-                setTimeout( () => { updateSceneParameters(); }, 100 );
+                setTimeout( () => updateSceneParameters(), 100 );
+
+                // build scene
+
+                updateScene();
+
+            }
+
+            function updateScene( ) {
+
+                scene.clear();
+
+                if ( params.scene === 'Bottle' ) {
+
+                    scene.add( ambientLight, directionalLight, hemisphereLight );
+                    scene.add( bottle );
+
+                } else {
+
+                    scene.add( ambientLight );
+                    scene.add( redBox );
+                    scene.add( woodBox );
+
+                }
+
+                updateSceneParameters()
 
             }
 
             function updateSceneParameters() {
+
+                // update ambient light
+
+                ambientLight.intensity = params.ambient;
+
+                // update materials
 
                 scene.traverse( ( object ) => {
 
@@ -187,25 +283,36 @@
 
                     for ( let i = 0; i < materials.length; i ++ ) {
 
+                        if ( ! materials[ i ].isMeshStandardMaterial ) continue;
+
                         if ( object.name.includes( 'liquid' ) ) {
 
                             materials[ i ].wboitEnabled = false;
                             materials[ i ].transparent = params.transparent;
-                            materials[ i ].opacity = 0.9;
+                            materials[ i ].opacity = 0.95;
+
+                        } else {
+
+                            materials[ i ].wboitEnabled = params.enabled;
+                            materials[ i ].transparent = params.transparent;
+                            materials[ i ].opacity = params.opacity;
+                            materials[ i ].weight = params.weight;
 
                         }
-
-                        if ( materials[ i ].wboitEnabled !== true ) continue;
-
-                        materials[ i ].transparent = params.transparent;
-                        materials[ i ].opacity = params.opacity;
-                        materials[ i ].weight = params.weight;
 
                     }
 
                 } );
 
-                render();
+                // background
+
+                texturePass.enabled = params.background;
+                wboitPass.clearColor = (params.background) ? undefined : clearColor;
+
+                // gamma correction
+
+                gammaPass.enabled = params.gamma;
+                shaderPass.enabled = ! params.gamma;
 
             }
 
@@ -215,9 +322,7 @@
                 camera.updateProjectionMatrix();
 
                 renderer.setSize( window.innerWidth, window.innerHeight );
-                wboitPass.setSize( window.innerWidth, window.innerHeight );
-
-                render();
+                composer.setSize( window.innerWidth, window.innerHeight );
 
             }
 
@@ -225,7 +330,7 @@
 
                 requestAnimationFrame( animate );
 
-                controls.update();
+                render();
 
             }
 
@@ -233,26 +338,7 @@
 
                 if ( ! scene ) return;
 
-                // clear
-
-                renderer.setClearColor( 0.0, 0.0 );
-                renderer.clear();
-
-                // background
-
-                if ( params.background ) texturePass.render( renderer );
-
-                // scene
-
-                if ( params.enabled ) {
-
-                    wboitPass.render( renderer );
-
-                } else {
-
-                    renderer.render( scene, camera );
-
-                }
+                composer.render();
 
             }
 

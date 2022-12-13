@@ -5,8 +5,7 @@ Weighted, Blended Order Independent Transparency ([paper](http://jcgt.org/publis
 ## Examples
 
 - <a href='https://stevinz.github.io/three-wboit/WeightedBlended.html'>Transparent Scene Demos</a>
-- <a href='https://stevinz.github.io/three-wboit/StandardMaterials.html'>MeshStandardMaterial Patch Demo</a>
-- <a href='https://stevinz.github.io/three-wboit/EffectComposer.html'>EffectComposer Demo</a>
+- <a href='https://stevinz.github.io/three-wboit/StandardMaterials.html'>MeshStandardMaterial Patching / Effect Composer Demos</a>
 
 ## More Info
 

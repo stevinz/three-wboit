@@ -43,7 +43,7 @@ import { WboitStages } from './materials/MeshWboitMaterial.js';
 const _clearColorZero = new Color( 0.0, 0.0, 0.0 );
 const _clearColorOne = new Color( 1.0, 1.0, 1.0 );
 
-const OpaqueShader = {
+const CopyAlphaTestShader = {
 
 	uniforms: {
 
@@ -109,7 +109,7 @@ class WboitPass extends Pass {
 
 		// Passes
 
-		this.opaquePass = new ShaderPass( OpaqueShader );
+		this.opaquePass = new ShaderPass( CopyAlphaTestShader );
 		this.opaquePass.material.depthTest = false;
 		this.opaquePass.material.depthWrite = false;
 		this.opaquePass.material.blending = CustomBlending;
@@ -117,7 +117,7 @@ class WboitPass extends Pass {
 		this.opaquePass.material.blendSrc = OneFactor;
 		this.opaquePass.material.blendDst = ZeroFactor;
 
-		this.transparentPass = new ShaderPass( CopyShader );
+		this.transparentPass = new ShaderPass( CopyAlphaTestShader );
 		this.transparentPass.material.depthTest = false;
 		this.transparentPass.material.depthWrite = false;
 		this.transparentPass.material.blending = CustomBlending;
@@ -458,19 +458,23 @@ class WboitPass extends Pass {
 
 		}
 
-		// Render Opaque Objects (copy render to write buffer so we can re-use depth buffer)
+		// Render Opaque Objects
 		changeVisible( true, false, false );
 		renderer.setRenderTarget( this.baseTarget );
 		renderer.setClearColor( _clearColorZero, 0.0 );
 		renderer.clear();
 		renderer.render( scene, this.camera );
+
+		// Copy 'Opaque Render' to write buffer so we can re-use depth buffer
 		this.opaquePass.render( renderer, writeBuffer, this.baseTarget );
 
-		// Render Transparent Objects (copy render to write buffer so we can re-use depth buffer)
+		// Render Transparent Objects
 		changeVisible( false, true, false );
 		renderer.setRenderTarget( this.baseTarget );
 		renderer.clearColor();
 		renderer.render( scene, this.camera );
+
+		// Copy 'Transparent Render' to write buffer so we can re-use depth buffer
 		this.transparentPass.render( renderer, writeBuffer, this.baseTarget );
 
 		// Render Wboit Objects, Accumulation Pass (copy render to write buffer so we can re-use depth buffer)
