@@ -285,6 +285,7 @@ class WboitPass extends Pass {
 			scene.traverse( ( object ) => {
 
 				if ( ! object.material ) return;
+				if ( ! object.visible ) return;
 
 				const materials = Array.isArray( object.material ) ? object.material : [ object.material ];
 				let isTransparent = true;

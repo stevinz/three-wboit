@@ -31,7 +31,7 @@
                  "imports": {
                     "three": "https://unpkg.com/three@0.147.0/build/three.module.js",
                     "three/addons/": "https://unpkg.com/three@0.147.0/examples/jsm/",
-                    "three-wboit": "https://unpkg.com/three-wboit@1.0.10/build/index.module.js"
+                    "three-wboit": "https://unpkg.com/three-wboit@1.0.11/build/index.module.js"
                 }
             }
         </script>
@@ -55,13 +55,14 @@
             import { TexturePass } from 'three/addons/postprocessing/TexturePass.js';
 
             // // NPM
+            // import { MeshBasicShaderMaterial } from 'three-wboit';
             // import { MeshWboitMaterial } from 'three-wboit';
             // import { WboitPass } from 'three-wboit';
             // import { WboitUtils } from 'three-wboit';
 
             // // Local
+            import { MeshBasicShaderMaterial } from '../src/shaders/MeshBasicShaderMaterial.js';
             import { MeshWboitMaterial } from '../src/materials/MeshWboitMaterial.js';
-            import { sRGBShader } from '../src/shaders/sRGBShader.js';
             import { WboitPass } from '../src/WboitPass.js';
             import { WboitUtils } from '../src/WboitUtils.js';
 
@@ -69,8 +70,8 @@
             let composer, clearColor = new THREE.Color();
             let gammaPass, shaderPass, texturePass, wboitPass;
 
-            let ambientLight, directionalLight, hemisphereLight;
-            let bottle, woodMaterial, woodBox, redBox;
+            let ambientLight, directionalLight;
+            let bottle, woodTexture, woodMaterial, woodBox, redBox;
 
             let mouse = new THREE.Vector2();
             let pixelBuffer = new Uint8Array( 4 );
@@ -94,23 +95,15 @@
 
                 renderer = new THREE.WebGLRenderer( { preserveDrawingBuffer: true } );
                 renderer.autoClear = false;
+                renderer.outputEncoding = THREE.sRGBEncoding;
                 document.body.appendChild( renderer.domElement );
 
                 gl = renderer.getContext();
-
-                scene = new THREE.Scene();
 
                 camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 0.10, 100 );
                 camera.position.z = 10;
 
                 controls = new OrbitControls( camera, renderer.domElement );
-
-                // lights
-
-                ambientLight = new THREE.AmbientLight( 0xffffff, 1 );
-                hemisphereLight = new THREE.HemisphereLight();
-                directionalLight = new THREE.DirectionalLight( 0xffffff, 1 );
-                directionalLight.position.set( 0.5, 0, 0.866 );
 
                 // textures
 
@@ -123,7 +116,7 @@
 
                 });
 
-                const woodTexture = textureLoader.load( './textures/hardwood2_diffuse.jpg', ( map ) => {
+                woodTexture = textureLoader.load( './textures/hardwood2_diffuse.jpg', ( map ) => {
 
                     map.encoding = THREE.sRGBEncoding;
                     onWindowResize()
@@ -132,17 +125,14 @@
 
                 // materials
 
-                woodMaterial = new THREE.MeshStandardMaterial( {
-
-                    map: woodTexture,
-                    transparent: true,
-                    opacity: 0.75,
-
-                } );
+                woodMaterial = new THREE.ShaderMaterial( MeshBasicShaderMaterial );
+                woodMaterial.transparent = true;
+                woodMaterial.uniforms.opacity.value = 0.75;
+                woodMaterial.uniforms.map.value = woodTexture;
 
                 WboitUtils.patch( woodMaterial );
 
-                // scene bottle
+                // bottle
 
                 bottle = new THREE.Object3D();
 
@@ -182,10 +172,24 @@
 
                 }, undefined, error => console.error( error ) );
 
-                // scene wood
+                // wood
 
                 redBox = new THREE.Mesh( new THREE.BoxGeometry(), new THREE.MeshBasicMaterial( { color: 0xff0000, transparent: true, opacity: 0.5 } ) );
                 woodBox = new THREE.Mesh( new THREE.BoxGeometry( 2, 2, 2 ), woodMaterial );
+                redBox.visible = false;
+                woodBox.visible = false;
+
+                // scene
+
+                scene = new THREE.Scene();
+
+                ambientLight = new THREE.AmbientLight( 0xffffff, 1 );
+                directionalLight = new THREE.DirectionalLight( 0xffffff, 1 );
+                directionalLight.position.set( 0.5, 0, 0.866 );
+
+                scene.add( ambientLight, directionalLight );
+                scene.add( bottle );
+                scene.add( redBox, woodBox );
 
                 // background texture pass
 
@@ -207,7 +211,7 @@
 
                 // final render to screen passes
 
-                gammaPass = new ShaderPass( sRGBShader /* <-- use custom, not GammaCorrectionShader */ ); /* sRGBEncoding */
+                gammaPass = new ShaderPass( GammaCorrectionShader ); /* sRGBEncoding */
                 gammaPass.enabled = false;
 
                 shaderPass = new ShaderPass( CopyShader ); /* LinearEncoding */
@@ -257,18 +261,17 @@
 
             function updateScene( ) {
 
-                scene.clear();
-
                 if ( params.scene === 'Bottle' ) {
 
-                    scene.add( ambientLight, directionalLight, hemisphereLight );
-                    scene.add( bottle );
+                    bottle.visible = true;
+                    redBox.visible = false;
+                    woodBox.visible = false;
 
                 } else {
 
-                    scene.add( ambientLight );
-                    scene.add( redBox );
-                    scene.add( woodBox );
+                    bottle.visible = false;
+                    redBox.visible = true;
+                    woodBox.visible = true;
 
                 }
 
@@ -290,21 +293,32 @@
                     let materials = Array.isArray( object.material ) ? object.material : [ object.material ];
 
                     for ( let i = 0; i < materials.length; i ++ ) {
+                        const material = materials[ i ];
 
-                        if ( ! materials[ i ].isMeshStandardMaterial ) continue;
+                        if ( material.isMeshStandardMaterial ) {
 
-                        if ( object.name.includes( 'liquid' ) ) {
+                            if ( object.name.includes( 'liquid' ) ) {
 
-                            materials[ i ].wboitEnabled = false;
-                            materials[ i ].transparent = params.transparent;
-                            materials[ i ].opacity = 0.95;
+                                material.wboitEnabled = false;
+                                material.transparent = params.transparent;
+                                material.opacity = 0.95;
 
-                        } else {
+                            } else {
 
-                            materials[ i ].wboitEnabled = params.enabled;
-                            materials[ i ].transparent = params.transparent;
-                            materials[ i ].opacity = params.opacity;
-                            materials[ i ].weight = params.weight;
+                                material.wboitEnabled = params.enabled;
+                                material.transparent = params.transparent;
+                                material.opacity = params.opacity;
+                                material.weight = params.weight;
+
+                            }
+
+                        } else if ( material.isShaderMaterial ) {
+
+                            material.wboitEnabled = params.enabled;
+                            material.transparent = params.transparent;
+                            material.weight = params.weight;
+
+                            material.uniforms.opacity.value = params.opacity;
 
                         }
 

@@ -1,10 +1,10 @@
-import {
-	Color
-} from 'three';
-
 /**
  * Color fill shader
  */
+
+import {
+	Color
+} from 'three';
 
 const FillShader = {
 
