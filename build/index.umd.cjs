@@ -38,6 +38,25 @@
 
 	};
 
+	const MeshBasicShaderMaterial = {
+
+	    defines: { USE_MAP: '', USE_UV: '', },
+
+	    uniforms: three.UniformsUtils.merge( [
+	        three.UniformsLib.common,
+	        three.UniformsLib.specularmap,
+	        three.UniformsLib.envmap,
+	        three.UniformsLib.aomap,
+	        three.UniformsLib.lightmap,
+	        three.UniformsLib.fog
+	    ] ),
+
+	    vertexShader: three.ShaderChunk.meshbasic_vert,
+
+	    fragmentShader: three.ShaderChunk.meshbasic_frag,
+
+	};
+
 	/**
 	 * MeshWboitMaterial
 	 *
@@ -1139,6 +1158,7 @@
 	}
 
 	exports.FillShader = FillShader;
+	exports.MeshBasicShaderMaterial = MeshBasicShaderMaterial;
 	exports.MeshWboitMaterial = MeshWboitMaterial;
 	exports.WboitCompositeShader = WboitCompositeShader;
 	exports.WboitPass = WboitPass;

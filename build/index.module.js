@@ -1,4 +1,4 @@
-import { Color, UniformsUtils, UniformsLib, ShaderMaterial, MultiplyOperation, CustomBlending, AddEquation, OneFactor, ZeroFactor, OneMinusSrcAlphaFactor, SrcAlphaFactor, Vector2, FloatType, HalfFloatType, UnsignedByteType, WebGLRenderTarget, NearestFilter, RGBAFormat } from 'three';
+import { Color, UniformsUtils, UniformsLib, ShaderChunk, ShaderMaterial, MultiplyOperation, CustomBlending, AddEquation, OneFactor, ZeroFactor, OneMinusSrcAlphaFactor, SrcAlphaFactor, Vector2, FloatType, HalfFloatType, UnsignedByteType, WebGLRenderTarget, NearestFilter, RGBAFormat } from 'three';
 import { Pass } from 'three/addons/postprocessing/Pass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { CopyShader } from 'three/addons/shaders/CopyShader.js';
@@ -34,6 +34,25 @@ const FillShader = {
 			gl_FragColor = vec4( color, opacity );
 
 		}`
+
+};
+
+const MeshBasicShaderMaterial = {
+
+    defines: { USE_MAP: '', USE_UV: '', },
+
+    uniforms: UniformsUtils.merge( [
+        UniformsLib.common,
+        UniformsLib.specularmap,
+        UniformsLib.envmap,
+        UniformsLib.aomap,
+        UniformsLib.lightmap,
+        UniformsLib.fog
+    ] ),
+
+    vertexShader: ShaderChunk.meshbasic_vert,
+
+    fragmentShader: ShaderChunk.meshbasic_frag,
 
 };
 
@@ -1137,5 +1156,5 @@ class WboitUtils {
 
 }
 
-export { FillShader, MeshWboitMaterial, WboitCompositeShader, WboitPass, WboitUtils, sRGBShader };
+export { FillShader, MeshBasicShaderMaterial, MeshWboitMaterial, WboitCompositeShader, WboitPass, WboitUtils, sRGBShader };
 //# sourceMappingURL=index.module.js.map
