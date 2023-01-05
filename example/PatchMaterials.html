@@ -213,7 +213,8 @@
 
                 // final render to screen passes
 
-                gammaPass = new ShaderPass( sRGBShader /* GammaCorrectionShader */ ); /* sRGBEncoding */
+                gammaPass = new ShaderPass( sRGBShader ); /* sRGBEncoding */
+                // gammaPass = new ShaderPass( GammaCorrectionShader ); /* sRGBEncoding, transparent background, problems on some monitors?? */
                 gammaPass.enabled = false;
 
                 shaderPass = new ShaderPass( CopyShader ); /* LinearEncoding */
