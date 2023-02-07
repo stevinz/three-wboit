@@ -3,17 +3,12 @@
 // @description WboitRenderer
 // @about       Weighted, blended order-independent transparency renderer for use with three.js WebGLRenderer
 // @author      Stephens Nunnally <@stevinz>
-// @license     MIT - Copyright (c) 2022 Stephens Nunnally and Scidian Studios
+// @license     MIT - Copyright (c) 2022 Stephens Nunnally
 // @source      https://github.com/stevinz/three-wboit
 //
 //      See end of file for license details and acknowledgements
 //
 ///////////////////////////////////////////////////////////////////////////////////*/
-
-/**
- * Weighted, blended order independent transparency pass.
- * Transparent meshes should use MeshWboitMaterial.
- */
 
 import {
 	AddEquation,
@@ -78,6 +73,10 @@ const CopyAlphaTestShader = {
 
 };
 
+/**
+ * Weighted, blended order independent transparency pass.
+ * Transparent meshes should use MeshWboitMaterial.
+ */
 class WboitPass extends Pass {
 
 	constructor( renderer, scene, camera, clearColor, clearAlpha ) {

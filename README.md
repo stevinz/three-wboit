@@ -99,9 +99,3 @@ const myMesh = new THREE.Mesh( new THREE.BoxGeometry(), material );
 - Weighted, Blended WebGL 2 Example by Tarek Sherif [@tsherif](https://github.com/tsherif) - [Repo](https://github.com/tsherif/webgl2examples/blob/master/oit.html)
 - Weighted, Blended Three.js Example by Alexander Rose [@arose](https://github.com/arose) - [Issue](https://github.com/mrdoob/three.js/issues/4814)
 - Depth Peel Three.js Example by Dusan Bosnjak [@pailhead](https://github.com/pailhead) - [Pull](https://github.com/mrdoob/three.js/pull/15490)
-
-## License
-
-Released under the terms of the MIT license, so it is free to use in your free or commercial projects.
-
-Copyright (c) 2022 Stephens Nunnally <@stevinz>
