@@ -30,8 +30,8 @@
         <script type='importmap'>
             {
                  "imports": {
-                    "three": "https://unpkg.com/three@0.147.0/build/three.module.js",
-                    "three/addons/": "https://unpkg.com/three@0.147.0/examples/jsm/",
+                    "three": "https://unpkg.com/three@0.154.0/build/three.module.js",
+                    "three/addons/": "https://unpkg.com/three@0.154.0/examples/jsm/",
                     "three-wboit": "https://unpkg.com/three-wboit@1.0.13/build/index.module.js"
                 }
             }
@@ -43,7 +43,7 @@
 
             import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 
-            import { mergeBufferGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+            import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
             import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
             import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -86,6 +86,7 @@
 
                 renderer = new THREE.WebGLRenderer( { preserveDrawingBuffer: true } );
                 renderer.autoClear = false;
+                renderer.outputColorSpace = THREE.SRGBColorSpace;
                 document.body.appendChild( renderer.domElement );
 
                 gl = renderer.getContext();
@@ -112,7 +113,7 @@
 
                 const loader = new GLTFLoader();
                 const dracoLoader = new DRACOLoader();
-                dracoLoader.setDecoderPath( 'https://unpkg.com/three@0.147.0/examples/js/libs/draco/' );
+                dracoLoader.setDecoderPath( 'https://unpkg.com/three@0.154.0/examples/js/libs/draco/' );
                 loader.setDRACOLoader( dracoLoader );
 
                 // scene 'Boxes'
@@ -207,7 +208,7 @@
                 bottleGeometries.push( new THREE.CylinderGeometry( 0.375, 0.375, 0.25, 32, 1, false ).translate( 0, 2.5, 0 ) ); /* spout */
                 bottleGeometries.push( new THREE.CircleGeometry( 1, 32 ).rotateX( Math.PI / 2 ).translate( 0, - 3.0, 0 ) ); /* bottom */
 
-                const bottleGeometry = mergeBufferGeometries( bottleGeometries );
+                const bottleGeometry = mergeGeometries( bottleGeometries );
                 bottleGeometries.forEach( geometry => geometry.dispose() );
 
                 const bottlePoints = bottleGeometry.attributes.position.count;
