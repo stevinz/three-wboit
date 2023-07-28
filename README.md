@@ -8,6 +8,10 @@ Weighted, Blended Order Independent Transparency ([paper](http://jcgt.org/publis
     - <a href='https://stevinz.github.io/three-wboit/WeightedBlended.html'>Transparent Scene Demos</a>
 - Scene Composer
     - <a href='https://stevinz.github.io/three-wboit/PatchMaterials.html'>Material Patching Demos</a>
+- Three Versions
+    - <a href='https://stevinz.github.io/three-wboit/ModelTest148andUnder.html'>Patching Three v148 and older</a>
+    - <a href='https://stevinz.github.io/three-wboit/ModelTest149to151.html'>Patching Three v149 to v151</a>
+    - <a href='https://stevinz.github.io/three-wboit/ModelTest152andUp.html'>Patching Three v152 and newer</a>
 
 ## More Info
 
@@ -92,6 +96,8 @@ WboitUtils.patch( material );
 const myMesh = new THREE.Mesh( new THREE.BoxGeometry(), material );
 
 ```
+
+NOTE: Three.js has made some changes to the renderer from versions v148 through v152, including how it renders transparent objects and how it deals with color space. For versions prior to 152 it is recommended to use the [version](https://www.npmjs.com/package/three-wboit?activeTab=versions) of this library `v1.0.13`.
 
 ## Acknowledgements
 

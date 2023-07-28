@@ -32,7 +32,7 @@
                  "imports": {
                     "three": "https://unpkg.com/three@0.154.0/build/three.module.js",
                     "three/addons/": "https://unpkg.com/three@0.154.0/examples/jsm/",
-                    "three-wboit": "https://unpkg.com/three-wboit@1.0.14/build/index.module.js"
+                    "three-wboit": "https://unpkg.com/three-wboit@1.0.15/build/index.module.js"
                 }
             }
         </script>
@@ -46,23 +46,22 @@
             import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
             import { TexturePass } from 'three/addons/postprocessing/TexturePass.js';
 
-            // NPM
+            // // NPM
             import { MeshWboitMaterial } from 'three-wboit';
+            import { sRGBShader } from 'three-wboit';
             import { WboitPass } from 'three-wboit';
             import { WboitUtils } from 'three-wboit';
 
-            // // // Local
+            // // Local
             // import { MeshWboitMaterial } from '../src/materials/MeshWboitMaterial.js';
             // import { WboitPass } from '../src/WboitPass.js';
             // import { WboitUtils } from '../src/WboitUtils.js';
 
             let gl, scene, camera, controls, renderer, texturePass, wboitPass;
 
-            let mouse = new THREE.Vector2();
-            let pixelBuffer = new Uint8Array(4);
-
             const params = {
                 enabled: true,
+                colorSpace: THREE.LinearSRGBColorSpace,
                 background: false,
                 transparent: true,
                 opacity: 0.75,
@@ -70,13 +69,14 @@
             };
 
             init();
-            animate();
             onWindowResize();
+            requestAnimationFrame(animate);
 
             function init() {
 
                 renderer = new THREE.WebGLRenderer({ preserveDrawingBuffer: true });
                 renderer.autoClear = false;
+                renderer.outputColorSpace = params.colorSpace;
                 document.body.appendChild(renderer.domElement);
 
                 gl = renderer.getContext();
@@ -105,35 +105,9 @@
                 scene.add(new THREE.AmbientLight(0xffffff, 1.0));
 
                 loader.load('./models/oit_testing.glb', function (gltf) {
-
-                    // patch materials
-                    gltf.scene.traverse((object) => {
-                        if (object.material) {
-                            // // // ???
-                            // if (object.material.name === 'Default material.001') { object.visible = false; return; }
-                            // // Red Ball
-                            // if (object.material.name === 'Default material') { object.visible = false; return; }
-                            // // Dragon
-                            // if (object.material.name === 'Default material.003') { object.visible = false; return; }
-                            // // Blue Ball
-                            // if (object.material.name === 'Default material.002') { object.visible = false; return; }
-
-                            WboitUtils.patch(object.material);
-
-                            object.material.side = THREE.FrontSide;
-
-                            // THREE 149 FIX
-                            object.material.forceSinglePass = true;
-
-                        }
-
-                    });
-
                     scene.add(gltf.scene);
-
-                    // update scene parameters
+                    gltf.scene.position.y -= 1;
                     updateSceneParameters();
-
                 }, undefined, error => console.error(error));
 
                 // background
@@ -149,6 +123,7 @@
                 const folder1 = gui.addFolder('Scene Params');
                 folder1.add(params, 'background').onFinishChange(updateSceneParameters);
                 const folder2 = gui.addFolder('Wboit Params');
+                folder2.add(params, 'colorSpace', { Linear: THREE.LinearSRGBColorSpace, sRGB: THREE.SRGBColorSpace }).onFinishChange(updateSceneParameters);
                 folder2.add(params, 'enabled').onFinishChange(updateSceneParameters);
                 folder2.add(params, 'transparent').onFinishChange(updateSceneParameters);
                 folder2.add(params, 'opacity', 0, 1).onFinishChange(updateSceneParameters);
@@ -156,8 +131,6 @@
 
                 // events
                 window.addEventListener('resize', onWindowResize, false);
-                controls.addEventListener('change', render );
-                renderer.domElement.addEventListener('mousemove', onMouseMove);
 
                 // initialize params
                 updateSceneParameters();
@@ -165,21 +138,32 @@
 
             function updateSceneParameters() {
 
-                scene.traverse((object) => {
-                    if (!object.material) return;
+                renderer.outputColorSpace = params.colorSpace;
 
-                    const materials = Array.isArray(object.material) ? object.material : [ object.material ];
-                    for (let i = 0; i < materials.length; i++) {
-                        const material = materials[i];
-                        material.transparent = params.transparent;
-                        material.opacity = params.opacity;
-                        if (material.wboitEnabled !== true) continue;
+                scene.traverse((object) => {
+                    if (!object.material || !object.material.isMaterial) return;
+                    let material = object.material;
+
+                    if (params.enabled) {
+
+                        material = object.material.clone();
+
+                        WboitUtils.patch(material);
                         material.weight = params.weight;
+
+                        object.material.dispose();
+                        object.material = material;
+
                     }
+
+                    // THREE 149 FIX
+                    object.material.forceSinglePass = true;
+
+                    object.material.transparent = params.transparent;
+                    object.material.opacity = params.opacity;
+
                 });
 
-                // render();
-                setTimeout(() => render(), 100);
             }
 
             function onWindowResize() {
@@ -187,35 +171,14 @@
                 camera.updateProjectionMatrix();
                 renderer.setSize(window.innerWidth, window.innerHeight);
                 wboitPass.setSize(window.innerWidth, window.innerHeight);
-                render();
-            }
-
-            function onMouseMove(event) {
-                mouse.x = event.clientX;
-                mouse.y = event.clientY;
             }
 
             function animate() {
-                requestAnimationFrame(animate);
-                controls.update();
-
-                // color under mouse
-                gl.readPixels(mouse.x, window.innerHeight - mouse.y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixelBuffer);
-                const rgba = Array.apply([], pixelBuffer);
-                document.getElementById('color').innerHTML = [
-                    (rgba[0] / 255 ).toPrecision(2),
-                    (rgba[1] / 255 ).toPrecision(2),
-                    (rgba[2] / 255 ).toPrecision(2),
-                    (rgba[3] / 255 ).toPrecision(2)
-                ].join(', ');
-            }
-
-            function render() {
                 if (!scene) return;
 
                 // clear
                 renderer.setClearColor(0.0, 0.0, 0.0);
-                renderer.clear();
+                renderer.clear(true, true, true);
 
                 // background
                 if (params.background) texturePass.render(renderer);
@@ -226,6 +189,8 @@
                 } else {
                     renderer.render(scene, camera);
                 }
+
+                requestAnimationFrame(animate);
             }
 
         </script>

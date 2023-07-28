@@ -21,6 +21,7 @@ import {
 	OneMinusSrcAlphaFactor,
 	RGBAFormat,
 	SrcAlphaFactor,
+	SRGBColorSpace,
 	UnsignedByteType,
 	Vector2,
 	WebGLRenderTarget,
@@ -30,7 +31,6 @@ import {
 import { Pass } from 'three/addons/postprocessing/Pass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 
-import { CopyShader } from 'three/addons/shaders/CopyShader.js';
 import { FillShader } from './shaders/FillShader.js';
 import { WboitCompositeShader } from './shaders/WboitCompositeShader.js';
 import { WboitStages } from './materials/MeshWboitMaterial.js';
@@ -38,11 +38,52 @@ import { WboitStages } from './materials/MeshWboitMaterial.js';
 const _clearColorZero = new Color( 0.0, 0.0, 0.0 );
 const _clearColorOne = new Color( 1.0, 1.0, 1.0 );
 
+const CopyShader = {
+
+	name: 'CopyShader',
+
+	uniforms: {
+
+		'tDiffuse': { value: null },
+		'opacity': { value: 1.0 }
+
+	},
+
+	vertexShader: /* glsl */`
+
+		varying vec2 vUv;
+
+		void main() {
+
+			vUv = uv;
+			gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+
+		}`,
+
+	fragmentShader: /* glsl */`
+
+		uniform float opacity;
+
+		uniform sampler2D tDiffuse;
+
+		varying vec2 vUv;
+
+		void main() {
+
+			gl_FragColor = texture2D( tDiffuse, vUv );
+			gl_FragColor.a *= opacity;
+
+
+		}`
+
+};
+
 const CopyAlphaTestShader = {
 
 	uniforms: {
 
 		'tDiffuse': { value: null },
+		'uGamma': { value: 0 },
 
 	},
 
@@ -60,6 +101,7 @@ const CopyAlphaTestShader = {
 	fragmentShader: /* glsl */`
 
 		uniform sampler2D tDiffuse;
+		uniform float uGamma;
 
 		varying vec2 vUv;
 
@@ -67,7 +109,13 @@ const CopyAlphaTestShader = {
 
 			vec4 color = texture2D( tDiffuse, vUv );
 			if ( color.a == 0.0 ) discard;
-			gl_FragColor = color;
+
+			// LinearTosRGB( color );
+			if (uGamma > 0.0) {
+				color.rgb = mix( pow( color.rgb, vec3( 0.41666 ) ) * 1.055 - vec3( 0.055 ), color.rgb * 12.92, vec3( lessThanEqual( color.rgb, vec3( 0.0031308 ) ) ) );
+			}
+
+			gl_FragColor = vec4(color.rgb, 1.0);
 
 		}`
 
@@ -464,6 +512,11 @@ class WboitPass extends Pass {
 		renderer.setClearColor( _clearColorZero, 0.0 );
 		renderer.clear();
 		renderer.render( scene, this.camera );
+
+		// Gamma Correction
+		this.opaquePass.material.uniforms['uGamma'].value = (renderer.outputColorSpace === SRGBColorSpace) ? 1 : 0;
+		this.transparentPass.material.uniforms['uGamma'].value = (renderer.outputColorSpace === SRGBColorSpace) ? 1 : 0;
+		this.compositePass.material.uniforms['uGamma'].value = (renderer.outputColorSpace === SRGBColorSpace) ? 1 : 0;
 
 		// Copy 'Opaque Render' to write buffer so we can re-use depth buffer
 		this.opaquePass.render( renderer, writeBuffer, this.baseTarget );

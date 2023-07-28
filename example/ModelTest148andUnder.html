@@ -108,6 +108,7 @@
                     });
 
                     scene.add(gltf.scene);
+                    gltf.scene.position.y -= 1;
 
                     // update scene parameters
                     updateSceneParameters();
@@ -144,16 +145,13 @@
             function updateSceneParameters() {
 
                 scene.traverse((object) => {
-                    if (!object.material) return;
+                    if (!object.material || !object.material.isMaterial) return;
 
-                    const materials = Array.isArray(object.material) ? object.material : [ object.material ];
-                    for (let i = 0; i < materials.length; i++) {
-                        const material = materials[i];
-                        material.transparent = params.transparent;
-                        material.opacity = params.opacity;
-                        if (material.wboitEnabled !== true) continue;
-                        material.weight = params.weight;
-                    }
+                    object.material.transparent = params.transparent;
+                    object.material.opacity = params.opacity;
+
+                    if (object.material.wboitEnabled !== true) return
+                    object.material.weight = params.weight;
                 });
 
                 setTimeout(() => render(), 100);

@@ -1,8 +1,8 @@
 (function (global, factory) {
-	typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('three'), require('three/addons/postprocessing/Pass.js'), require('three/addons/postprocessing/ShaderPass.js'), require('three/addons/shaders/CopyShader.js')) :
-	typeof define === 'function' && define.amd ? define(['exports', 'three', 'three/addons/postprocessing/Pass.js', 'three/addons/postprocessing/ShaderPass.js', 'three/addons/shaders/CopyShader.js'], factory) :
-	(global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.THREE = global["three-wboit"] || {}, global.THREE, global.THREE, global.THREE, global.THREE));
-})(this, (function (exports, three, Pass_js, ShaderPass_js, CopyShader_js) { 'use strict';
+	typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('three'), require('three/addons/postprocessing/Pass.js'), require('three/addons/postprocessing/ShaderPass.js')) :
+	typeof define === 'function' && define.amd ? define(['exports', 'three', 'three/addons/postprocessing/Pass.js', 'three/addons/postprocessing/ShaderPass.js'], factory) :
+	(global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.THREE = global["three-wboit"] || {}, global.THREE, global.THREE, global.THREE));
+})(this, (function (exports, three, Pass_js, ShaderPass_js) { 'use strict';
 
 	/**
 	 * Color fill shader
@@ -439,7 +439,8 @@
 		uniforms: {
 
 			'tAccumulation': { value: null },
-			'tRevealage': { value: null }
+			'tRevealage': { value: null },
+			'uGamma': { value: 0 },
 
 		},
 
@@ -463,6 +464,7 @@
 
 		uniform sampler2D tAccumulation;
 		uniform sampler2D tRevealage;
+		uniform float uGamma;
 
 		float EPSILON = 0.00001;
 
@@ -480,7 +482,14 @@
 			vec4 accum = texture2D( tAccumulation, vUv );
 
 			vec4 composite = vec4( accum.rgb / clamp( accum.a, 0.0001, 50000.0 ), reveal );
-			gl_FragColor = clamp( composite, 0.01, 300.0 );
+			vec4 color = clamp( composite, 0.01, 300.0 );
+
+			// LinearTosRGB( color );
+			if (uGamma > 0.0) {
+				color.rgb = mix( pow( color.rgb, vec3( 0.41666 ) ) * 1.055 - vec3( 0.055 ), color.rgb * 12.92, vec3( lessThanEqual( color.rgb, vec3( 0.0031308 ) ) ) );
+			}
+
+			gl_FragColor = color;
 
 		}`,
 
@@ -501,11 +510,52 @@
 	const _clearColorZero = new three.Color( 0.0, 0.0, 0.0 );
 	const _clearColorOne = new three.Color( 1.0, 1.0, 1.0 );
 
+	const CopyShader = {
+
+		name: 'CopyShader',
+
+		uniforms: {
+
+			'tDiffuse': { value: null },
+			'opacity': { value: 1.0 }
+
+		},
+
+		vertexShader: /* glsl */`
+
+		varying vec2 vUv;
+
+		void main() {
+
+			vUv = uv;
+			gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+
+		}`,
+
+		fragmentShader: /* glsl */`
+
+		uniform float opacity;
+
+		uniform sampler2D tDiffuse;
+
+		varying vec2 vUv;
+
+		void main() {
+
+			gl_FragColor = texture2D( tDiffuse, vUv );
+			gl_FragColor.a *= opacity;
+
+
+		}`
+
+	};
+
 	const CopyAlphaTestShader = {
 
 		uniforms: {
 
 			'tDiffuse': { value: null },
+			'uGamma': { value: 0 },
 
 		},
 
@@ -523,6 +573,7 @@
 		fragmentShader: /* glsl */`
 
 		uniform sampler2D tDiffuse;
+		uniform float uGamma;
 
 		varying vec2 vUv;
 
@@ -530,7 +581,13 @@
 
 			vec4 color = texture2D( tDiffuse, vUv );
 			if ( color.a == 0.0 ) discard;
-			gl_FragColor = color;
+
+			// LinearTosRGB( color );
+			if (uGamma > 0.0) {
+				color.rgb = mix( pow( color.rgb, vec3( 0.41666 ) ) * 1.055 - vec3( 0.055 ), color.rgb * 12.92, vec3( lessThanEqual( color.rgb, vec3( 0.0031308 ) ) ) );
+			}
+
+			gl_FragColor = vec4(color.rgb, 1.0);
 
 		}`
 
@@ -587,7 +644,7 @@
 			this.transparentPass.material.blendSrc = three.OneFactor;
 			this.transparentPass.material.blendDst = three.OneMinusSrcAlphaFactor;
 
-			this.copyPass = new ShaderPass_js.ShaderPass( CopyShader_js.CopyShader );
+			this.copyPass = new ShaderPass_js.ShaderPass( CopyShader );
 			this.copyPass.material.depthTest = false;
 			this.copyPass.material.depthWrite = false;
 			this.copyPass.material.blending = three.CustomBlending;
@@ -928,6 +985,11 @@
 			renderer.clear();
 			renderer.render( scene, this.camera );
 
+			// Gamma Correction
+			this.opaquePass.material.uniforms['uGamma'].value = (renderer.outputColorSpace === three.SRGBColorSpace) ? 1 : 0;
+			this.transparentPass.material.uniforms['uGamma'].value = (renderer.outputColorSpace === three.SRGBColorSpace) ? 1 : 0;
+			this.compositePass.material.uniforms['uGamma'].value = (renderer.outputColorSpace === three.SRGBColorSpace) ? 1 : 0;
+
 			// Copy 'Opaque Render' to write buffer so we can re-use depth buffer
 			this.opaquePass.render( renderer, writeBuffer, this.baseTarget );
 
@@ -1099,6 +1161,9 @@
 					uniform float renderStage;
 					uniform float weight;
 				` + shader.fragmentShader;
+
+					// shader.fragmentShader = shader.fragmentShader.replace('#include <tonemapping_fragment>', '');
+					// shader.fragmentShader = shader.fragmentShader.replace('#include <colorspace_fragment>', '');
 
 					shader.fragmentShader = shader.fragmentShader.replace( /}$/gm, `
 
