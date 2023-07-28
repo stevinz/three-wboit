@@ -36,6 +36,9 @@ class WboitUtils {
 					uniform float weight;
 				` + shader.fragmentShader;
 
+				// shader.fragmentShader = shader.fragmentShader.replace('#include <tonemapping_fragment>', '');
+				// shader.fragmentShader = shader.fragmentShader.replace('#include <colorspace_fragment>', '');
+
 				shader.fragmentShader = shader.fragmentShader.replace( /}$/gm, `
 
 					if ( renderStage == ${ WboitStages.Acummulation.toFixed( 1 ) } ) {
