@@ -30,8 +30,8 @@
         <script type='importmap'>
             {
                  "imports": {
-                    "three": "https://unpkg.com/three@0.148.0/build/three.module.js",
-                    "three/addons/": "https://unpkg.com/three@0.148.0/examples/jsm/",
+                    "three": "https://unpkg.com/three@0.145.0/build/three.module.js",
+                    "three/addons/": "https://unpkg.com/three@0.145.0/examples/jsm/",
                     "three-wboit": "https://unpkg.com/three-wboit@1.0.13/build/index.module.js"
                 }
             }
@@ -102,6 +102,7 @@
                         if (object.material) {
 
                             WboitUtils.patch(object.material);
+                            object.material.side = THREE.FrontSide;
 
                         }
 
