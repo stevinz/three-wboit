@@ -88,7 +88,7 @@
                 // loader
                 const loader = new GLTFLoader();
                 const dracoLoader = new DRACOLoader();
-                dracoLoader.setDecoderPath('https://unpkg.com/three@0.148.0/examples/js/libs/draco/');
+                dracoLoader.setDecoderPath('https://unpkg.com/three@0.145.0/examples/js/libs/draco/');
                 loader.setDRACOLoader(dracoLoader);
 
                 // scene
@@ -151,7 +151,7 @@
                     object.material.transparent = params.transparent;
                     object.material.opacity = params.opacity;
 
-                    if (object.material.wboitEnabled !== true) return
+                    if (object.material.wboitEnabled !== true) return;
                     object.material.weight = params.weight;
                 });
 
