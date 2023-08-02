@@ -5,9 +5,9 @@ Weighted, Blended Order Independent Transparency ([paper](http://jcgt.org/publis
 ## Examples
 
 - Stand-Alone
-    - <a href='https://stevinz.github.io/three-wboit/WeightedBlended.html'>Transparent Scene Demos</a>
+    - <a href='https://stevinz.github.io/three-wboit/WeightedBlended.html'>General Wboit Examples</a>
 - Scene Composer
-    - <a href='https://stevinz.github.io/three-wboit/PatchMaterials.html'>Material Patching Demos</a>
+    - <a href='https://stevinz.github.io/three-wboit/PatchMaterials.html'>Effect Composer w/Material Patching</a>
 - Three Versions
     - <a href='https://stevinz.github.io/three-wboit/ModelTest148andUnder.html'>Patching Three v148 and older</a>
     - <a href='https://stevinz.github.io/three-wboit/ModelTest149to151.html'>Patching Three v149 to v151</a>
